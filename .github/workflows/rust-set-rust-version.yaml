@@ -1,4 +1,4 @@
-name: Test rust-cache
+name: Test rust-set-rust-version
 
 on:
   push:
@@ -6,7 +6,6 @@ on:
   pull_request:
 
 jobs:
-
 
   complete:
     if: always()
@@ -17,6 +16,6 @@ jobs:
       run: exit 1
 
   test:
-    uses: ./rust-set-rust-version/workflow.yaml
+    uses: ./rust-set-rust-version/workflow.yml
     secrets:
       GITHUB_TOKEN:
