@@ -1,0 +1,35 @@
+name: 'Rust Cache'
+description: 'Cache rust dep and build artifacts'
+runs:
+  using: "composite"
+  steps:
+  - uses: actions/cache@v3
+    with:
+      path: |
+        ~/.cargo/registry/index/
+        ~/.cargo/registry/cache/
+        ~/.cargo/git/db/
+      key: |
+        cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+      restore-keys: |
+        cargo-deps-
+  - uses: actions/cache@v3
+    with:
+      path: |
+        ~/.cargo/target/
+      key: |
+        cargo-target-global-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-${{ github.sha }}
+      restore-keys: |
+        cargo-target-global-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-
+        cargo-target-global-${{ github.workflow }}-${{ github.job }}-
+  - uses: actions/cache@v3
+    with:
+      path: target/
+      key: |
+        cargo-target-local-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-${{ github.sha }}
+      restore-keys: |
+        cargo-target-local-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-
+        cargo-target-local-${{ github.workflow }}-${{ github.job }}-
+  - if: github.ref_protected
+    shell: bash
+    run: rm -fr target
