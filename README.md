@@ -4,6 +4,7 @@ This repository contains GitHub Actions and GitHub Actions Workflows that are sh
 | Name | Type | Description | Example Use |
 | ---- | ---- | ----------- | ----------- |
 | [rust-cache] | Action | Caches dependencies, install artifacts, and build artifacts in Rust projects. | [rs-stellar-env] |
+| [rust-set-rust-version] | Workflow | Updates the rust-version in Rust crates to the latest stable version. | [rs-stellar-env] |
 
 [@stellar]: https://github.com/stellar
 
