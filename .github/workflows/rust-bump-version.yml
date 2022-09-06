@@ -1,0 +1,40 @@
+name: Bump Version
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to bump to (e.g. 0.1.0)'
+        required: true
+
+jobs:
+
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./rust-cache
+    - run: rustup update
+    - run: cargo install --locked --version 0.2.35 cargo-workspaces
+    - run: |
+        cargo workspaces version --all --force '*' --no-git-commit --yes custom ${{ inputs.version }}
+    - name: Create Commit
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git checkout -b 'release/v${{ inputs.version }}'
+        git add .
+        git commit -m 'Bump version to ${{ inputs.version }}'
+        git push origin 'release/v${{ inputs.version }}'
+    - name: Create Pull Request
+      uses: actions/github-script@v6
+      with:
+        script: |
+          await github.rest.pulls.create({
+            title: 'Bump version to ${{ inputs.version }}',
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            head: 'release/v${{ inputs.version }}',
+            base: 'main',
+            body: '### What\nBump version to ${{ inputs.version }}, creating release branch.\n\n### Why\nTriggered by ${{ github.actor }}.\n\n### What is next\nCommit any changes to the `release/v${{ inputs.version }}` branch that are needed in this release.'
+          });
