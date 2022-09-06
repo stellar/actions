@@ -1,7 +1,7 @@
 name: Bump Version
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       version:
         description: 'Version to bump to (e.g. 0.1.0)'
