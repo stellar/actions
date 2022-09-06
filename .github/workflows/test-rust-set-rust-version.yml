@@ -16,6 +16,6 @@ jobs:
       run: exit 1
 
   test:
-    uses: ./rust-set-rust-version/workflow.yml
+    uses: ./.github/workflows/rust-set-rust-version.yml
     secrets:
       GITHUB_TOKEN:
