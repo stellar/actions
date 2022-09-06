@@ -9,5 +9,6 @@ This repository contains GitHub Actions and GitHub Actions Workflows that are sh
 [@stellar]: https://github.com/stellar
 
 [rust-cache]: ./rust-cache/action.yaml
+[rust-set-rust-version]: ./rust-cache/workflow.yaml
 
 [rs-stellar-env]: https://github.com/stellar/rs-stellar-env
