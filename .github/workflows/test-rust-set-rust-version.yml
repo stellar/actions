@@ -17,5 +17,3 @@ jobs:
 
   test:
     uses: ./.github/workflows/rust-set-rust-version.yml
-    secrets:
-      GITHUB_TOKEN:
