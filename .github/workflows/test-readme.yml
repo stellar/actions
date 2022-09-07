@@ -1,0 +1,45 @@
+name: Test readme
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+
+  complete:
+    if: always()
+    needs: [readme]
+    runs-on: ubuntu-latest
+    steps:
+    - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+      run: exit 1
+
+  readme:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    # Check if every action (directory) is mentioned in the readme.
+    - run: |
+        for dir in * ; do
+          if ! [ -d "$dir" ]; then
+            continue
+          fi
+          if ! grep --fixed-strings "$dir" README.md ; then
+            echo "Action '$dir' is not mentioned in the README.md file. Please add a row in the table for it."
+            exit 1
+          fi
+        done
+
+    # Check if every reusable workflow (workflows/*.yml file) is mentioned in the readme.
+    - run: |
+        for file in .github/workflows/*.yml ; do
+          if [ "$file" = ".github/workflows/test-readme.yml" ] || ! grep --fixed-strings 'workflow_call' "$file" ; then
+            echo "Ignoring workflow '$file' because it is not a reusable workflow."
+          elif ! grep --fixed-strings "$file" README.md ; then
+            echo "Action '$file' is not mentioned in the README.md file. Please add a row in the table for it."
+            exit 1
+          fi
+        done
+
