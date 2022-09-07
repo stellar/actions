@@ -22,8 +22,8 @@ jobs:
 
     # Check if every action (directory) is mentioned in the readme.
     - run: |
-        for dir in ${*/%/} ; do
-          if [ -z "$dir" ]; then
+        for dir in * ; do
+          if ! [ -d "$dir" ]; then
             continue
           fi
           if ! grep --fixed-strings '$dir' README.md ; then
