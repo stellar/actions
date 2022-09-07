@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: ./rust-cache
+    - uses: stellar/actions/rust-cache@main
     - run: rustup update
     - run: cargo install --locked --version 0.4.0 cargo-set-rust-version --target-dir ~/.cargo/target
 
