@@ -26,7 +26,7 @@ jobs:
           if ! [ -d "$dir" ]; then
             continue
           fi
-          if ! grep --fixed-strings '$dir' README.md ; then
+          if ! grep --fixed-strings "$dir" README.md ; then
             echo "Action '$dir' is not mentioned in the README.md file. Please add a row for it."
             exit 1
           fi
