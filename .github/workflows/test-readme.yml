@@ -1,4 +1,4 @@
-name: Test rust-set-rust-version
+name: Test readme
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
 
     # Check if every action (directory) is mentioned in the readme.
     - run: |
-        for dir in *; do
+        for dir in */ ; do
           if ! grep --fixed-strings '$dir' README.md ; then
             echo "Action '$dir' is not mentioned in the README.md file. Please add a row for it."
             exit 1
@@ -31,7 +31,7 @@ jobs:
 
     # Check if every reusable workflow (workflows/*.yml file) is mentioned in the readme.
     - run: |
-        for file in .github/workflows/*; do
+        for file in .github/workflows/*.yml ; do
           if grep --fixed-strings 'workflow_call'; then
             echo "Ignoring workflow '$file' because it is not a reusable workflow."
           elif ! grep --fixed-strings '$dir' README.md ; then
