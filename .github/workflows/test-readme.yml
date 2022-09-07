@@ -35,7 +35,7 @@ jobs:
     # Check if every reusable workflow (workflows/*.yml file) is mentioned in the readme.
     - run: |
         for file in .github/workflows/*.yml ; do
-          if [ "$file" = ".github/workflows/test-readme.yml" ] || ! grep --fixed-strings 'workflow_call'; then
+          if ! grep --fixed-strings 'workflow_call'; then
             echo "Ignoring workflow '$file' because it is not a reusable workflow."
           elif ! grep --fixed-strings "$file" README.md ; then
             echo "Action '$file' is not mentioned in the README.md file. Please add a row in the table for it."
