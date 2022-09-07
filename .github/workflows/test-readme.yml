@@ -37,8 +37,8 @@ jobs:
         for file in .github/workflows/*.yml ; do
           if grep --fixed-strings 'workflow_call'; then
             echo "Ignoring workflow '$file' because it is not a reusable workflow."
-          elif ! grep --fixed-strings '$dir' README.md ; then
-            echo "Action '$dir' is not mentioned in the README.md file. Please add a row for it."
+          elif ! grep --fixed-strings "$file" README.md ; then
+            echo "Action '$file' is not mentioned in the README.md file. Please add a row for it."
             exit 1
           fi
         done
