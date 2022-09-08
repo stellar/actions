@@ -13,10 +13,12 @@ live in `.github/workflows/test-*`.
 | [rust-cache] | Action | Caches dependencies, install artifacts, and build artifacts in Rust projects. | [rs-stellar-env] |
 | [rust-set-rust-version] | Reusable Workflow | Updates the rust-version in Rust crates to the latest stable version. | [rs-stellar-env] |
 | [rust-bump-version] | Reusable Workflow | Updates the version in Rust crates to a input version. | [rs-stellar-env] |
+| [rust-workspace-publish-dry-run] | Action | Run publish dry run (package verification) on all crates in a workspace. | [rs-stellar-env] |
 
 [@stellar]: https://github.com/stellar
 
 [rust-cache]: ./rust-cache/action.yml
+[rust-cache]: ./rust-workspace-publish-dry-run/action.yml
 [rust-set-rust-version]: ./.github/workflows/rust-set-rust-version.yml
 [rust-bump-version]: ./.github/workflows/rust-bump-version.yml
 
