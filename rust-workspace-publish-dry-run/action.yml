@@ -13,14 +13,14 @@ runs:
   - shell: bash
     run: cargo install --target-dir ~/.cargo/target --locked --version 0.5.16 cargo-hack
 
-  # Remove [patch.crates-io] entries in the workspace Cargo.toml that reference
-  # git repos. These will be removed when published.
+  # Vendor all the dependencies into the vendor/ folder. Temporarily remove
+  # [patch.crates-io] entries in the workspace Cargo.toml that reference git
+  # repos. These will be removed when published.
   - shell: bash
-    run: sed -i.bak -r '/git ?=/d' Cargo.toml
-
-  # Vendor all the dependencies into the vendor/ folder.
-  - shell: bash
-    run: cargo vendor --versioned-dirs
+    run: |
+      sed -i.bak -r '/git ?=/d' Cargo.toml
+      cargo vendor --versioned-dirs
+      mv Cargo.toml.bak Cargo.toml
 
   # Package the crates that will be published. Verification is disabled because
   # we aren't ready to verify yet.
