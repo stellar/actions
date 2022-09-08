@@ -26,7 +26,7 @@ runs:
     run: |
       for crate in target/package/*.crate
       do
-        local name=$(basename "$crate" .crate)
+        name=$(basename "$crate" .crate)
         tar xvfz "$crate" -C vendor/
         # Crates in the vendor directory require a checksum file.
         echo '{"files":{}}' > vendor/$name/.cargo-checksum.json
