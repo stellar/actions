@@ -20,7 +20,7 @@ runs:
     run: |
       sed -i.bak -r '/git ?=/d' Cargo.toml
       cargo vendor --versioned-dirs
-      rm Cargo.toml.bak
+      mv Cargo.toml.bak Cargo.toml
 
   # Package the crates that will be published. Verification is disabled because
   # we aren't ready to verify yet.
