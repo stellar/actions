@@ -6,8 +6,6 @@ runs:
 
   - shell: bash
     run: cargo install --target-dir ~/.cargo/target --locked --version 0.5.16 cargo-hack
-  - shell: bash
-    run: cargo install --target-dir ~/.cargo/target --locked --version 0.1.0 cargo-vendor-add
 
   # Remove [patch.crates-io] entries in the workspace Cargo.toml that reference
   # git repos. These will be removed when published.
@@ -28,7 +26,10 @@ runs:
     run: |
       for crate in target/package/*.crate
       do
-        cargo vendor-add --crate "$crate" --vendor-path vendor
+        local name=$(basename "$crate" .crate)
+        tar xvfz "$crate" -C vendor/
+        # Crates in the vendor directory require a checksum file.
+        echo '{"files":{}}' > vendor/$name/.cargo-checksum.json
       done
 
   # Rerun the package command but with verification enabled this time. Tell
