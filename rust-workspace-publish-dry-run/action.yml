@@ -2,7 +2,7 @@ name: 'Rust Workspace Publish Dry Run'
 description: 'Dry run publish workspace crates.'
 
 inputs:
-  options:
+  cargo-package-options:
     description: 'options to pass to cargo package'
     default: ''
 
