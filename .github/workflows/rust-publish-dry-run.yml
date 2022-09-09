@@ -9,6 +9,7 @@ on:
         type: string
       cargo-hack-feature-options:
         required: false
+        default: '--feature-powerset'
         type: string
       cargo-package-options:
         required: false
@@ -53,7 +54,6 @@ jobs:
     # each crate are verified to compile.
     - run: >
         cargo hack
-        --feature-powerset
         ${{ inputs.cargo-hack-feature-options }}
         --ignore-private
         --config "source.crates-io.replace-with = 'vendored-sources'"
