@@ -3,13 +3,18 @@ name: Publish Dry Run
 on:
   workflow_call:
     inputs:
+      runs-on:
+        required: true
+        default: 'ubuntu-latest'
+        type: string
       cargo-package-options:
         required: false
+        type: string
 
 jobs:
 
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     steps:
     - uses: actions/checkout@v3
     - uses: stellar/actions/rust-cache@main
