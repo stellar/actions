@@ -15,21 +15,26 @@ runs:
         cargo-deps-
   - uses: actions/cache@v3
     with:
-      path: |
-        ~/.cargo/target/
+      path: ~/.cargo/target/
       key: |
         cargo-target-global-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-${{ github.sha }}
       restore-keys: |
         cargo-target-global-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-
         cargo-target-global-${{ github.workflow }}-${{ github.job }}-
+  - shell: bash
+    run: cargo install --target-dir ~/.cargo/target --locked sccache
+  - shell: bash
+    run: |
+      echo 'RUSTC_WRAPPER=sccache' >> $GITHUB_ENV
+      echo 'SCCACHE_CACHE_SIZE=9G' >> $GITHUB_ENV
   - uses: actions/cache@v3
     with:
-      path: target/
+      path: ~/.cache/sccache
       key: |
-        cargo-target-local-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-${{ github.sha }}
+        cargo-sccache-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-${{ github.sha }}
       restore-keys: |
-        cargo-target-local-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-
-        cargo-target-local-${{ github.workflow }}-${{ github.job }}-
+        cargo-sccache-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-
+        cargo-sccache-${{ github.workflow }}-${{ github.job }}-
   - if: github.ref_protected
     shell: bash
-    run: rm -fr target
+    run: rm -fr ~/.cache/sccache
