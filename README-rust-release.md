@@ -14,7 +14,7 @@ The following workflows support a release process for Rust crates.
 
 The [Rust crates at @stellar][crates] are released using the following process:
 
-[crates]: https://github.com/orgs/stellar/repositories?q=language=rust
+[crates]: https://github.com/orgs/stellar/repositories?language=rust
 
   - [1. Bump Version](#1-bump-version)
   - [2. Review PR](#2-review-pr)
