@@ -43,6 +43,9 @@ jobs:
 
 #### Releasing / Publishing
 
+See [README-rust-release.md] for the release process supported by these
+workflows.
+
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [rust-bump-version] | Workflow | Updates the version in Rust crates to a input version. |
@@ -57,4 +60,4 @@ jobs:
 [rust-publish-dry-run]: ./.github/workflows/rust-publish-dry-run.yml
 [rust-publish]: ./.github/workflows/rust-publish.yml
 
-[rs-stellar-env]: https://github.com/stellar/rs-stellar-env
+[README-rust-release.md]: README-rust-release.md
