@@ -7,6 +7,9 @@ on:
         required: false
         default: 'ubuntu-latest'
         type: string
+      cargo-hack-feature-options:
+        required: false
+        type: string
       cargo-package-options:
         required: false
         type: string
@@ -51,6 +54,7 @@ jobs:
     - run: >
         cargo hack
         --feature-powerset
+        ${{ inputs.cargo-hack-feature-options }}
         --ignore-private
         --config "source.crates-io.replace-with = 'vendored-sources'"
         --config "source.vendored-sources.directory = 'vendor'"
