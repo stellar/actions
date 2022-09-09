@@ -1,26 +1,21 @@
 # stellar/actions
 This repository contains GitHub Actions and GitHub Actions Workflows that are shared by [@stellar] repositories.
 
-Actions are defined in directories.
-
-Reusable workflows live in `.github/workflows/`.
-
-Actions and workflows are lightly tested in this repo, and those test workflows
-live in `.github/workflows/test-*`.
-
 | Name | Type | Description | Example Use |
 | ---- | ---- | ----------- | ----------- |
 | [rust-cache] | Action | Caches dependencies, install artifacts, and build artifacts in Rust projects. | [rs-stellar-env] |
 | [rust-set-rust-version] | Reusable Workflow | Updates the rust-version in Rust crates to the latest stable version. | [rs-stellar-env] |
 | [rust-bump-version] | Reusable Workflow | Updates the version in Rust crates to a input version. | [rs-stellar-env] |
-| [rust-workspace-publish-dry-run] | Action | Run publish dry run (package verification) on all crates in a workspace. | [rs-stellar-env] |
+| [rust-publish-dry-run] | Action | Run a package verification on all crates in a workspace in their published form. | [rs-stellar-env] |
+| [rust-publish] | Action | Publish all crates in a workspace. | [rs-stellar-env] |
 
 [@stellar]: https://github.com/stellar
 
 [rust-cache]: ./rust-cache/action.yml
-[rust-cache]: ./rust-workspace-publish-dry-run/action.yml
 [rust-set-rust-version]: ./.github/workflows/rust-set-rust-version.yml
 [rust-bump-version]: ./.github/workflows/rust-bump-version.yml
+[rust-publish-dry-run]: ./.github/workflows/rust-publish-dry-run.yml
+[rust-publish]: ./.github/workflows/rust-publish.yml
 
 [rs-stellar-env]: https://github.com/stellar/rs-stellar-env
 
@@ -42,7 +37,8 @@ jobs:
 
 To use a reusable workflow in this repository in another repository, specify the
 reusable workflow in this repo using the `uses` directive inside a job, and
-specify `stellar/actions/<path-to-reusable-workflow>`. For example:
+specify `stellar/actions/<path-to-reusable-workflow>`. The path used for the
+workflow must be the `.github/workflows/` path. For example:
 
 ```yml
 jobs:
