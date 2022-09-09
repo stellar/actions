@@ -14,7 +14,7 @@ this repo using the `uses` directive inside a step inside a job, and specify `st
 jobs:
   my_job:
     steps:
-    - uses: stellar/actions/rust-cache@main
+    - uses: stellar/actions/rust-cache@sccache
 ```
 
 ### Reusable Workflows

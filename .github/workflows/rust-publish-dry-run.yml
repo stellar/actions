@@ -21,7 +21,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     steps:
     - uses: actions/checkout@v3
-    - uses: stellar/actions/rust-cache@main
+    - uses: stellar/actions/rust-cache@sccache
     - run: rustup update
     - run: cargo install --target-dir ~/.cargo/target --locked --version 0.5.16 cargo-hack
 
