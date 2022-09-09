@@ -22,8 +22,6 @@ runs:
         cargo-target-global-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-
         cargo-target-global-${{ github.workflow }}-${{ github.job }}-
   - shell: bash
-    run: rustup update
-  - shell: bash
     run: cargo install --target-dir ~/.cargo/target --locked sccache
   - shell: bash
     run: |
