@@ -1,13 +1,13 @@
 # stellar/actions
 This repository contains GitHub Actions and GitHub Actions Workflows that are shared by [@stellar] repositories.
 
-| Name | Type | Description | Example Use |
-| ---- | ---- | ----------- | ----------- |
-| [rust-cache] | Action | Caches dependencies, install artifacts, and build artifacts in Rust projects. | [rs-stellar-env] |
-| [rust-set-rust-version] | Reusable Workflow | Updates the rust-version in Rust crates to the latest stable version. | [rs-stellar-env] |
-| [rust-bump-version] | Reusable Workflow | Updates the version in Rust crates to a input version. | [rs-stellar-env] |
-| [rust-publish-dry-run] | Action | Run a package verification on all crates in a workspace in their published form. | [rs-stellar-env] |
-| [rust-publish] | Action | Publish all crates in a workspace. | [rs-stellar-env] |
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [rust-cache] | Action | Caches dependencies, install artifacts, and build artifacts in Rust projects. |
+| [rust-set-rust-version] | Workflow | Updates the rust-version in Rust crates to the latest stable version. |
+| [rust-bump-version] | Workflow | Updates the version in Rust crates to a input version. |
+| [rust-publish-dry-run] | Action | Run a package verification on all crates in a workspace in their published form. |
+| [rust-publish] | Workflow | Publish all crates in a workspace. |
 
 [@stellar]: https://github.com/stellar
 
