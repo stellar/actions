@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       runs-on:
-        required: true
+        required: false
         default: 'ubuntu-latest'
         type: string
       cargo-package-options:
