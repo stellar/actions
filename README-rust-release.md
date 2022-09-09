@@ -80,6 +80,6 @@ commit from the PR merging.
 An action will be started to perform the publish. The action can be found on the
 `Actions` tab of the repository. Follow along to make sure it goes smoothly.
 
-Published crates will be visible at
+Published crates will be visible at https://crates.io/users/stellar-crates?sort=recent-updates.
 
 [#lang-rust]: https://stellarfoundation.slack.com/archives/C03BQJ34VGQ
