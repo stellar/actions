@@ -1,23 +1,7 @@
 # stellar/actions
-This repository contains GitHub Actions and GitHub Actions Workflows that are shared by [@stellar] repositories.
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [rust-cache] | Action | Caches dependencies, install artifacts, and build artifacts in Rust projects. |
-| [rust-set-rust-version] | Workflow | Updates the rust-version in Rust crates to the latest stable version. |
-| [rust-bump-version] | Workflow | Updates the version in Rust crates to a input version. |
-| [rust-publish-dry-run] | Workflow | Run a package verification on all crates in a workspace in their published form. |
-| [rust-publish] | Workflow | Publish all crates in a workspace. |
-
-[@stellar]: https://github.com/stellar
-
-[rust-cache]: ./rust-cache/action.yml
-[rust-set-rust-version]: ./.github/workflows/rust-set-rust-version.yml
-[rust-bump-version]: ./.github/workflows/rust-bump-version.yml
-[rust-publish-dry-run]: ./.github/workflows/rust-publish-dry-run.yml
-[rust-publish]: ./.github/workflows/rust-publish.yml
-
-[rs-stellar-env]: https://github.com/stellar/rs-stellar-env
+This repository contains GitHub Actions and GitHub Actions Workflows that are
+shared by [@stellar] repositories.
 
 ## Usage
 
@@ -45,3 +29,32 @@ jobs:
   my_job:
     uses: stellar/actions/.github/workflows/rust-set-rust-version.yml@main
 ```
+
+## Actions and Workflows
+
+### Rust
+
+#### General
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [rust-cache] | Action | Caches dependencies, install artifacts, and build artifacts in Rust projects. |
+| [rust-set-rust-version] | Workflow | Updates the rust-version in Rust crates to the latest stable version. |
+
+#### Releasing / Publishing
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [rust-bump-version] | Workflow | Updates the version in Rust crates to a input version. |
+| [rust-publish-dry-run] | Workflow | Run a package verification on all crates in a workspace in their published form. |
+| [rust-publish] | Workflow | Publish all crates in a workspace. |
+
+[@stellar]: https://github.com/stellar
+
+[rust-cache]: ./rust-cache/action.yml
+[rust-set-rust-version]: ./.github/workflows/rust-set-rust-version.yml
+[rust-bump-version]: ./.github/workflows/rust-bump-version.yml
+[rust-publish-dry-run]: ./.github/workflows/rust-publish-dry-run.yml
+[rust-publish]: ./.github/workflows/rust-publish.yml
+
+[rs-stellar-env]: https://github.com/stellar/rs-stellar-env
