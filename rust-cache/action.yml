@@ -33,10 +33,10 @@ runs:
     with:
       path: ~/.cache/sccache
       key: |
-        cargo-target-local-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-${{ github.sha }}
+        cargo-sccache-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-${{ github.sha }}
       restore-keys: |
-        cargo-target-local-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-
-        cargo-target-local-${{ github.workflow }}-${{ github.job }}-
+        cargo-sccache-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-
+        cargo-sccache-${{ github.workflow }}-${{ github.job }}-
   - if: github.ref_protected
     shell: bash
     run: rm -fr ~/.cache/sccache
