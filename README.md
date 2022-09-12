@@ -54,7 +54,7 @@ workflows.
 
 [@stellar]: https://github.com/stellar
 
-[rust-cache]: ./rust-cache/action.yml
+[rust-cache]: ./rust-cache
 [rust-set-rust-version]: ./.github/workflows/rust-set-rust-version.yml
 [rust-bump-version]: ./.github/workflows/rust-bump-version.yml
 [rust-publish-dry-run]: ./.github/workflows/rust-publish-dry-run.yml
