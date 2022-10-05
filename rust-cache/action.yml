@@ -22,7 +22,16 @@ runs:
         cargo-target-global-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-
         cargo-target-global-${{ github.workflow }}-${{ github.job }}-
   - shell: bash
-    run: cargo install --target-dir ~/.cargo/target --locked sccache
+    env:
+      SCCACHE_VERSION: v0.3.0
+      SCCACHE_FILE: sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
+      SCCACHE_FILE_SHA256: e6cd8485f93d683a49c83796b9986f090901765aa4feb40d191b03ea770311d8
+      SCCACHE_DIR: sccache-v0.3.0-x86_64-unknown-linux-musl
+    run: |
+      curl --fail --location --output /tmp/$SCCACHE_FILE https://github.com/mozilla/sccache/releases/download/$SCCACHE_VERSION/$SCCACHE_FILE
+      sha256sum -c <(echo "$SCCACHE_FILE_SHA256  /tmp/$SCCACHE_FILE")
+      tar xz -f /tmp/$SCCACHE_FILE -C /usr/local/bin --strip-components=1 $SCCACHE_DIR/sccache
+      chmod +x /usr/local/bin/sccache
   - shell: bash
     run: |
       echo 'RUSTC_WRAPPER=sccache' >> $GITHUB_ENV
