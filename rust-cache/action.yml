@@ -24,11 +24,13 @@ runs:
   - shell: bash
     env:
       SCCACHE_VERSION: v0.3.0
-      SCCACHE_TAR_GZ_SHA256: e6cd8485f93d683a49c83796b9986f090901765aa4feb40d191b03ea770311d8
+      SCCACHE_FILE: sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
+      SCCACHE_FILE_SHA256: e6cd8485f93d683a49c83796b9986f090901765aa4feb40d191b03ea770311d8
+      SCCACHE_DIR: sccache-v0.3.0-x86_64-unknown-linux-musl
     run: >
-      curl -sSL -O --output-dir /tmp https://github.com/mozilla/sccache/releases/download/$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz
-      sha256sum -c <(echo "$SCCACHE_TAR_GZ_SHA256  /tmp/sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz")
-      tar xz -f /tmp/sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz -C /usr/local/bin --strip-components=1 sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl/sccache
+      curl -sSL -o /tmp/$SCCACHE_FILE https://github.com/mozilla/sccache/releases/download/$SCCACHE_VERSION/$SCCACHE_FILE
+      sha256sum -c <(echo "$SCCACHE_FILE_SHA256  /tmp/$SCCACHE_FILE")
+      tar xz -f /tmp/$SCCACHE_FILE -C /usr/local/bin --strip-components=1 $SCCACHE_DIR/sccache
       chmod +x /usr/local/bin/sccache
   - shell: bash
     run: |
