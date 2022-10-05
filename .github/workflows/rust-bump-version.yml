@@ -3,6 +3,10 @@ name: Bump Version
 on:
   workflow_call:
     inputs:
+      base:
+        description: 'Name of branch to open PR against'
+        type: 'string'
+        default: 'main'
       version:
         description: 'Version to bump to (e.g. 0.1.0)'
         type: 'string'
@@ -36,6 +40,6 @@ jobs:
             owner: context.repo.owner,
             repo: context.repo.repo,
             head: 'release/v${{ inputs.version }}',
-            base: 'main',
+            base: '${{ inputs.base }}',
             body: '### What\nBump version to ${{ inputs.version }}, creating release branch.\n\n### Why\nTriggered by @${{ github.actor }}.\n\n### What is next\nCommit any changes to the `release/v${{ inputs.version }}` branch that are needed in this release.\n\nThen merge this PR when ready to release the version.\n\nAfter merging, create a release for this version by going to the link below. Creating the release will trigger the publish.\n\nhttps://github.com/${{ github.repository }}/releases/new?tag=v${{ inputs.version }}&title=${{ inputs.version }}'
           });
