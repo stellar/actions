@@ -21,7 +21,9 @@ jobs:
     - uses: stellar/actions/rust-cache@main
     - run: rustup update
     - run: cargo install --target-dir ~/.cargo/target --locked --version 0.2.35 cargo-workspaces
-    - run: |
+    - id: set-version
+      continue-on-error: true
+      run: |
         cargo workspaces version --all --force '*' --no-git-commit --yes custom ${{ inputs.version }}
     - name: Create Commit
       run: |
@@ -33,13 +35,26 @@ jobs:
         git push origin 'release/v${{ inputs.version }}'
     - name: Create Pull Request
       uses: actions/github-script@v6
+      id: create-pull-request
       with:
         script: |
-          await github.rest.pulls.create({
+          const response = await github.rest.pulls.create({
             title: 'Bump version to ${{ inputs.version }}',
             owner: context.repo.owner,
             repo: context.repo.repo,
             head: 'release/v${{ inputs.version }}',
             base: '${{ inputs.base }}',
-            body: '### What\nBump version to ${{ inputs.version }}, creating release branch.\n\n### Why\nTriggered by @${{ github.actor }}.\n\n### What is next\nCommit any changes to the `release/v${{ inputs.version }}` branch that are needed in this release.\n\nThen merge this PR when ready to release the version.\n\nAfter merging, create a release for this version by going to the link below. Creating the release will trigger the publish.\n\nhttps://github.com/${{ github.repository }}/releases/new?tag=v${{ inputs.version }}&title=${{ inputs.version }}'
+            body: '### What\nBump version to ${{ inputs.version }}, creating release branch.\n\n### Why\nTriggered by @${{ github.actor }} in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}.\n\n### What is next\nCommit any changes to the `release/v${{ inputs.version }}` branch that are needed in this release.\n\nThen merge this PR when ready to release the version.\n\nAfter merging, create a release for this version by going to the link below. Creating the release will trigger the publish.\n\nhttps://github.com/${{ github.repository }}/releases/new?tag=v${{ inputs.version }}&title=${{ inputs.version }}'
           });
+          return response.data.number;
+    - name: Comment on the Pull Request about Failure
+      if: steps.set-version.outcome == 'failure'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: ${{steps.create-pull-request.outputs.result}},
+            body: '🚨 There was an error setting versions when bumping version. Check out the GitHub Action that triggered this Pull Request for more information. Inspect the diff before merging.',
+          })
