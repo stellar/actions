@@ -11,6 +11,9 @@ on:
     secrets:
       CARGO_REGISTRY_TOKEN:
         required: true
+      GITHUB_TOKEN:
+        description: 'GitHub token for uploading bins (required only if bins)'
+        required: false
 
 jobs:
 
@@ -47,3 +50,5 @@ jobs:
         with:
           bin: ${{ inputs.bins }}
           target: ${{ matrix.target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
