@@ -47,6 +47,6 @@ jobs:
         with:
           bin: ${{ inputs.bins }}
           target: ${{ matrix.target }}
-          ref: 'refs/tag/v0.1.2'
+          ref: 'refs/tags/v0.1.2'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
