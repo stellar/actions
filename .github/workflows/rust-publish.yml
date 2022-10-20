@@ -11,9 +11,9 @@ on:
     secrets:
       CARGO_REGISTRY_TOKEN:
         required: true
-      GITHUB_TOKEN:
-        description: 'GitHub token for uploading bins (required only if bins)'
-        required: false
+      # GITHUB_TOKEN:
+      #   description: 'GitHub token for uploading bins (required only if bins)'
+      #   required: false
 
 jobs:
 
