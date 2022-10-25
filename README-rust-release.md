@@ -20,14 +20,19 @@ The [Rust crates at @stellar][crates] are released using the following process:
   - [2. Review PR](#2-review-pr)
   - [3. Merge PR](#3-merge-pr)
   - [4. Create Release on GitHub](#4-create-release-on-github)
-  - [5. Monitor the Publish](#5-monitor-the-publish)
+  - [5. Close PR](#5-close-pr)
+  - [6. Monitor the Publish](#6-monitor-the-publish)
 
 Note that this release process leans into trunk-based releasing, where most
 releases occur directly from the `main` branch. If patches need to be made to
-past releases create a release by performing step 1 below, then:
-- Make the changes on the `main` branch first then backport to the `release/` branch.
-- Or, open PRs against or push changes to the `release/` branch, then
-cherry-pick those changes back up onto `main` in new PRs.
+past releases:
+1. Create a release by performing step 1 below.
+2. Then:
+   - Make the changes on the `main` branch first then backport to the `release/`
+   branch.
+   - Or, open PRs against or push changes to the `release/` branch, then
+   cherry-pick those changes back up onto `main` in new PRs.
+3. Then, continue from step 2 below.
 
 ## 1. Bump Version
 
