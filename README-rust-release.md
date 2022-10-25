@@ -22,6 +22,13 @@ The [Rust crates at @stellar][crates] are released using the following process:
   - [4. Create Release on GitHub](#4-create-release-on-github)
   - [5. Monitor the Publish](#5-monitor-the-publish)
 
+Note that this release process leans into trunk-based releasing, where most
+releases occur directly from the `main` branch. If patches need to be made to
+past releases create a release by performing step 1 below, then:
+- Make the changes on the `main` branch first then backport to the `release/` branch.
+- Or, open PRs against or push changes to the `release/` branch, then
+cherry-pick those changes back up onto `main` in new PRs.
+
 ## 1. Bump Version
 
 Each Rust repo has a workflow that can be triggered manually, called the `Bump
@@ -31,7 +38,12 @@ Using the `rs-soroban-sdk` repo as an example:
 
 1. Go to https://github.com/stellar/rs-soroban-sdk/actions/workflows/bump-version.yml.
 
-2. Click `Run workflow` and enter the version the crates in the repository should be bumped to.
+2. Click `Run workflow`, choose the branch, and enter the version the crates in the repository should be bumped to.
+
+    The branch selected is the branch that the release process is to be started
+    from. It will usually be the `main` branch for the next planned release. If
+    the release is to branch off of a past release, such as when we're releasing
+    a patch, select the tag for that past release.
 
     ![](README-rust-release-1-run-bump-version.png)
 
@@ -39,6 +51,7 @@ Using the `rs-soroban-sdk` repo as an example:
     - Updates the version of all crates in the repo to the input version.
     - Create a branch with name `release/v<version>`.
     - Open a PR for the branch to merge to `main`.
+
 
 _Note that this part of the release process does not yet support releasing from
 a non-main branch. See [#23](https://github.com/stellar/actions/issues/23) for
@@ -64,18 +77,32 @@ you see any errors you don't understand, ask in [#lang-rust]._
 
 ## 3. Merge PR
 
-When the build is passing and you're ready to release, merge the PR to the
-`main` branch.
+**Skip this step if releasing from the release branch for a patch of a past
+release.**
+
+When the build is passing and you're ready to release, squash merge the PR to
+the `main` branch.
 
 ## 4. Create Release on GitHub
 
+First check that the `publish-dry-run` CI jobs have succeeded for the commit to
+be released.
+
 Draft a new release on GitHub for the repository.
 
-The PR above contained a link you can click to create the release. Create the
-release _after_ merging, for the commit on the `main` branch that was the final
-commit from the PR merging.
+Specify the commit to be tagged as the latest commit on the `main` branch if
+step 3 was performed. Otherwise, use the commit on the `release/` branch.
 
-## 5. Monitor the Publish
+## 5. Close PR
+
+**Skip this step if releasing from the `main` branch for a regular release,
+*since the PR is already merged.**
+
+Once the release is created close the release branch PR. If there are changes on
+that branch that should be ported to `main`, do that separately by
+cherry-picking the commits.
+
+## 6. Monitor the Publish
 
 An action will be started to perform the publish. The action can be found on the
 `Actions` tab of the repository. Follow along to make sure it goes smoothly.
