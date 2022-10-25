@@ -18,9 +18,9 @@ The [Rust crates at @stellar][crates] are released using the following process:
 
   - [1. Bump Version](#1-bump-version)
   - [2. Review PR](#2-review-pr)
-  - [3. Merge PR](#3-merge-pr)
+  - [3. Merge PR](#3-merge-pr) (for `main` branch releases)
   - [4. Create Release on GitHub](#4-create-release-on-github)
-  - [5. Close PR](#5-close-pr)
+  - [5. Close PR](#5-merge-pr) (for backport patch releases)
   - [6. Monitor the Publish](#6-monitor-the-publish)
 
 Note that this release process leans into trunk-based releasing, where most
