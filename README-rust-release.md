@@ -1,6 +1,24 @@
 # Rust Release Workflows
 
-The following workflows support a release process for Rust crates.
+The [Rust crates at @stellar][crates] are released using the following process:
+
+[crates]: https://github.com/orgs/stellar/repositories?language=rust
+
+  - [Step 1. Run the Bump Version Workflow]
+  - [Step 2. Review PR]
+  - [Step 3. Merge PR] (for `main` branch releases)
+  - [Step 4. Create Release on GitHub]
+  - [Step 5. Close PR] (for patches to past releases)
+  - [Step 6. Monitor the Publish]
+
+[Step 1. Run the Bump Version Workflow]: #step-1-create-release-branch-with-the-bump-version-workflow
+[Step 2. Review PR]: #step-2-review-pr
+[Step 3. Merge PR]: #step-3-merge-pr
+[Step 4. Create Release on GitHub]: #step-4-create-release-on-github
+[Step 5. Close PR]: #step-5-merge-pr
+[Step 6. Monitor the Publish]: #step-6-monitor-the-publish
+
+The following workflows support the release process:
 
 | Name | Description |
 | ---- | ----------- |
@@ -12,40 +30,33 @@ The following workflows support a release process for Rust crates.
 [rust-publish-dry-run]: ./rust-publish-dry-run.yml
 [rust-publish]: ./rust-publish.yml
 
-The [Rust crates at @stellar][crates] are released using the following process:
+## Release Types
 
-[crates]: https://github.com/orgs/stellar/repositories?language=rust
-
-  - [1. Create Release Branch with the Bump Version Workflow](#1-create-release-branch-with-the-bump-version-workflow)
-  - [2. Review PR](#2-review-pr)
-  - [3. Merge PR](#3-merge-pr) (for `main` branch releases)
-  - [4. Create Release on GitHub](#4-create-release-on-github)
-  - [5. Close PR](#5-merge-pr) (for patches to past releases)
-  - [6. Monitor the Publish](#6-monitor-the-publish)
-
-The release process leans into trunk-based releasing, where most releases occur
+### Regular Releases
+The release process defaults to trunk-based releasing, where releases occur
 directly from the `main` branch. For these types of regular releases follow the
 steps 1-6.
 
-If patches need to be made to past releases, use this modified flow:
-1. Create a release branch by performing step 1 below.
-2. Then:
+### Patching Past Releases
+If patches need to be made to past releases, use a modified flow:
+- Step 1. Run the Bump Version Workflow, selecting the past release as the
+starting branch.
+- Then:
    - Make the changes on the `main` branch first then backport to the `release/`
    branch.
    - Or, open PRs against or push changes to the `release/` branch, then
    cherry-pick those changes back up onto `main` in new PRs.
-3. Then, continue from step 2 below.
+- Then, continue from step 2 below.
 
-## 1. Create Release Branch with the Bump Version Workflow
+## Step 1. Run the Bump Version Workflow
 
-Each Rust repo has a workflow that can be triggered manually, called the `Bump
-Version` workflow.
+Each Rust repo has a workflow called the `Bump Version` workflow. It can be triggered manually, and it will create a new branch for a release
 
 Using the `rs-soroban-sdk` repo as an example:
 
-1. Go to https://github.com/stellar/rs-soroban-sdk/actions/workflows/bump-version.yml.
+- Go to https://github.com/stellar/rs-soroban-sdk/actions/workflows/bump-version.yml.
 
-2. Click `Run workflow`, choose the branch, and enter the version the crates in the repository should be bumped to.
+- Click `Run workflow`, choose the branch, and enter the version the crates in the repository should be bumped to.
 
     The branch selected is the branch that the release process is to be started
     from. It will usually be the `main` branch for the next planned release. If
