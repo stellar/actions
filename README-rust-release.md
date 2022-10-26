@@ -23,9 +23,11 @@ The [Rust crates at @stellar][crates] are released using the following process:
   - [5. Close PR](#5-merge-pr) (for backport patch releases)
   - [6. Monitor the Publish](#6-monitor-the-publish)
 
-Note that this release process leans into trunk-based releasing, where most
-releases occur directly from the `main` branch. If patches need to be made to
-past releases:
+The release process leans into trunk-based releasing, where most releases occur
+directly from the `main` branch. For these types of regular releases follow the
+steps 1-6.
+
+If patches need to be made to past releases, use this modified flow:
 1. Create a release by performing step 1 below.
 2. Then:
    - Make the changes on the `main` branch first then backport to the `release/`
