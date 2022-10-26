@@ -16,7 +16,7 @@ The [Rust crates at @stellar][crates] are released using the following process:
 
 [crates]: https://github.com/orgs/stellar/repositories?language=rust
 
-  - [1. Create Release Branch by Setting the Version](#1-create-release-branch-by-setting-the-version)
+  - [1. Create Release Branch with the Bump Version Workflow](#1-create-release-branch-with-the-bump-version-workflow)
   - [2. Review PR](#2-review-pr)
   - [3. Merge PR](#3-merge-pr) (for `main` branch releases)
   - [4. Create Release on GitHub](#4-create-release-on-github)
@@ -36,7 +36,7 @@ If patches need to be made to past releases, use this modified flow:
    cherry-pick those changes back up onto `main` in new PRs.
 3. Then, continue from step 2 below.
 
-## 1. Create Release Branch by Setting the Version
+## 1. Create Release Branch with the Bump Version Workflow
 
 Each Rust repo has a workflow that can be triggered manually, called the `Bump
 Version` workflow.
