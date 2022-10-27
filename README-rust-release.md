@@ -50,7 +50,7 @@ starting branch.
 
 ## Step 1. Run the Bump Version Workflow
 
-Each Rust repo has a workflow called the `Bump Version` workflow. It can be triggered manually, and it will create a new branch for a release
+Each Rust repo has a workflow called the `Bump Version` workflow. It can be triggered manually, and it will create a new branch where the release can be prepared.
 
 Using the `rs-soroban-sdk` repo as an example:
 
@@ -69,11 +69,6 @@ Using the `rs-soroban-sdk` repo as an example:
     - Updates the version of all crates in the repo to the input version.
     - Create a branch with name `release/v<version>`.
     - Open a PR for the branch to merge to `main`.
-
-
-_Note that this part of the release process does not yet support releasing from
-a non-main branch. See [#23](https://github.com/stellar/actions/issues/23) for
-more information._
 
 ## 2. Review PR
 
