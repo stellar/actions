@@ -41,6 +41,7 @@ runs:
     run: |
       curl --fail --location --output /tmp/$SCCACHE_FILE https://github.com/mozilla/sccache/releases/download/$SCCACHE_VERSION/$SCCACHE_FILE
       $SHASUM -c <(echo "$SCCACHE_FILE_SHA256  /tmp/$SCCACHE_FILE")
+      mkdir -p "$HOME/.local/bin"
       tar xz -f /tmp/$SCCACHE_FILE -C "$HOME/.local/bin" --strip-components=1 $SCCACHE_DIR/$SCCACHE_BIN_FILE
       chmod +x "$HOME/.local/bin/$SCCACHE_BIN_FILE"
   - shell: bash
