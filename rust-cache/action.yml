@@ -37,7 +37,7 @@ runs:
       SCCACHE_FILE="$SCCACHE_FILE_${{ runner.os }}"
       SCCACHE_FILE_SHA256="$SCCACHE_FILE_SHA256_${{ runner.os }}"
       SCCACHE_DIR="$SCCACHE_DIR_${{ runner.os }}"
-      SCCACHE_BIN_FILE="sccache${{ runner.os == 'Windows' && '.exe' }}"
+      SCCACHE_BIN_FILE="sccache${{ runner.os == 'Windows' && '.exe' || '' }}"
       curl --fail --location --output /tmp/$SCCACHE_FILE https://github.com/mozilla/sccache/releases/download/$SCCACHE_VERSION/$SCCACHE_FILE
       shasum="${{ runner.os == 'macOS' && 'shasum' || 'sha256sum' }}"
       $shasum -c <(echo "$SCCACHE_FILE_SHA256  /tmp/$SCCACHE_FILE")
