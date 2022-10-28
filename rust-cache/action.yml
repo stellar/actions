@@ -47,7 +47,8 @@ runs:
       chmod +x "$HOME/.local/bin/$SCCACHE_BIN_FILE"
   - shell: bash
     run: |
-      echo 'RUSTC_WRAPPER=sccache${{ runner.os == 'Windows' && '.exe' || '' }}' >> $GITHUB_ENV
+      # echo 'RUSTC_WRAPPER=sccache${{ runner.os == 'Windows' && '.exe' || '' }}' >> $GITHUB_ENV
+      echo 'RUSTC_WRAPPER=sccache' >> $GITHUB_ENV
       echo 'SCCACHE_CACHE_SIZE=9G' >> $GITHUB_ENV
   - uses: actions/cache@v3
     with:
