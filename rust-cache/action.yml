@@ -29,7 +29,8 @@ runs:
       SCCACHE_DIR: sccache-v0.3.0-x86_64-unknown-linux-musl
     run: |
       curl --fail --location --output /tmp/$SCCACHE_FILE https://github.com/mozilla/sccache/releases/download/$SCCACHE_VERSION/$SCCACHE_FILE
-      sha256sum -c <(echo "$SCCACHE_FILE_SHA256  /tmp/$SCCACHE_FILE")
+      shasum="${{ runner.os == 'macOS' && 'shasum' || 'sha256sum' }}"
+      $shasum -c <(echo "$SCCACHE_FILE_SHA256  /tmp/$SCCACHE_FILE")
       tar xz -f /tmp/$SCCACHE_FILE -C /usr/local/bin --strip-components=1 $SCCACHE_DIR/sccache
       chmod +x /usr/local/bin/sccache
   - shell: bash
