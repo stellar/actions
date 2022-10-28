@@ -24,20 +24,20 @@ runs:
   - shell: bash
     env:
       SCCACHE_VERSION: v0.3.0
-      SCCACHE_FILE_Linux: sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
-      SCCACHE_FILE_SHA256_Linux: e6cd8485f93d683a49c83796b9986f090901765aa4feb40d191b03ea770311d8
-      SCCACHE_DIR_Linux: sccache-v0.3.0-x86_64-unknown-linux-musl
-      SCCACHE_FILE_macOS: sccache-v0.3.0-x86_64-apple-darwin.tar.gz
-      SCCACHE_FILE_SHA256_macOS: 61c16fd36e32cdc923b66e4f95cb367494702f60f6d90659af1af84c3efb11eb
-      SCCACHE_DIR_macOS: sccache-v0.3.0-x86_64-apple-darwin
-      SCCACHE_FILE_Windows: sccache-v0.3.0-x86_64-pc-windows-msvc.tar.gz
-      SCCACHE_FILE_SHA256_Windows: f25e927584d79d0d5ad489e04ef01b058dad47ef2c1633a13d4c69dfb83ba2be
-      SCCACHE_DIR_Windows: sccache-v0.3.0-x86_64-pc-windows-msvc
+      SCCACHE_FILE: >
+        ${{ (runner.os == 'Linux' && 'sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz')
+        || (runner.os == 'macOS' && 'sccache-v0.3.0-x86_64-apple-darwin.tar.gz')
+        || (runner.os == 'Windows' && 'sccache-v0.3.0-x86_64-pc-windows-msvc.tar.gz') }}
+      SCCACHE_FILE_SHA256: >
+        ${{ (runner.os == 'Linux' && 'e6cd8485f93d683a49c83796b9986f090901765aa4feb40d191b03ea770311d8')
+        || (runner.os == 'macOS' && '61c16fd36e32cdc923b66e4f95cb367494702f60f6d90659af1af84c3efb11eb')
+        || (runner.os == 'Windows' && 'f25e927584d79d0d5ad489e04ef01b058dad47ef2c1633a13d4c69dfb83ba2be') }}
+      SCCACHE_DIR: >
+        ${{ (runner.os == 'Linux' && 'sccache-v0.3.0-x86_64-unknown-linux-musl')
+        || (runner.os == 'macOS' && 'sccache-v0.3.0-x86_64-apple-darwin')
+        || (runner.os == 'Windows' && 'sccache-v0.3.0-x86_64-pc-windows-msvc') }}
+      SCCACHE_BIN_FILE: sccache${{ runner.os == 'Windows' && '.exe' || '' }}
     run: |
-      SCCACHE_FILE="$SCCACHE_FILE_${{ runner.os }}"
-      SCCACHE_FILE_SHA256="$SCCACHE_FILE_SHA256_${{ runner.os }}"
-      SCCACHE_DIR="$SCCACHE_DIR_${{ runner.os }}"
-      SCCACHE_BIN_FILE="sccache${{ runner.os == 'Windows' && '.exe' || '' }}"
       curl --fail --location --output /tmp/$SCCACHE_FILE https://github.com/mozilla/sccache/releases/download/$SCCACHE_VERSION/$SCCACHE_FILE
       shasum="${{ runner.os == 'macOS' && 'shasum' || 'sha256sum' }}"
       $shasum -c <(echo "$SCCACHE_FILE_SHA256  /tmp/$SCCACHE_FILE")
