@@ -24,23 +24,23 @@ runs:
   - shell: bash
     env:
       SCCACHE_VERSION: v0.3.0
-      SCCACHE_FILE: >
+      SCCACHE_FILE: |
         ${{ (runner.os == 'Linux' && 'sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz')
         || (runner.os == 'macOS' && 'sccache-v0.3.0-x86_64-apple-darwin.tar.gz')
         || (runner.os == 'Windows' && 'sccache-v0.3.0-x86_64-pc-windows-msvc.tar.gz') }}
-      SCCACHE_FILE_SHA256: >
+      SCCACHE_FILE_SHA256: |
         ${{ (runner.os == 'Linux' && 'e6cd8485f93d683a49c83796b9986f090901765aa4feb40d191b03ea770311d8')
         || (runner.os == 'macOS' && '61c16fd36e32cdc923b66e4f95cb367494702f60f6d90659af1af84c3efb11eb')
         || (runner.os == 'Windows' && 'f25e927584d79d0d5ad489e04ef01b058dad47ef2c1633a13d4c69dfb83ba2be') }}
-      SCCACHE_DIR: >
+      SCCACHE_DIR: |
         ${{ (runner.os == 'Linux' && 'sccache-v0.3.0-x86_64-unknown-linux-musl')
         || (runner.os == 'macOS' && 'sccache-v0.3.0-x86_64-apple-darwin')
         || (runner.os == 'Windows' && 'sccache-v0.3.0-x86_64-pc-windows-msvc') }}
       SCCACHE_BIN_FILE: sccache${{ runner.os == 'Windows' && '.exe' || '' }}
+      SHASUM: ${{ runner.os == 'macOS' && 'shasum' || 'sha256sum' }}
     run: |
       curl --fail --location --output /tmp/$SCCACHE_FILE https://github.com/mozilla/sccache/releases/download/$SCCACHE_VERSION/$SCCACHE_FILE
-      shasum="${{ runner.os == 'macOS' && 'shasum' || 'sha256sum' }}"
-      $shasum -c <(echo "$SCCACHE_FILE_SHA256  /tmp/$SCCACHE_FILE")
+      $SHASUM -c <(echo "$SCCACHE_FILE_SHA256  /tmp/$SCCACHE_FILE")
       mkdir -p $HOME/.local/bin
       echo "$HOME/.local/bin" >> $GITHUB_PATH
       tar xz -f /tmp/$SCCACHE_FILE -C "$HOME/.local/bin" --strip-components=1 $SCCACHE_DIR/$SCCACHE_BIN_FILE
