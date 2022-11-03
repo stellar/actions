@@ -44,6 +44,7 @@ jobs:
         cp Cargo.toml Cargo.toml.bak
         sed -r '/git ?=/d' Cargo.toml.bak > Cargo.toml
         cargo vendor --versioned-dirs
+        rm Cargo.toml
         mv Cargo.toml.bak Cargo.toml
 
     # Package the crates that will be published. Verification is disabled because
