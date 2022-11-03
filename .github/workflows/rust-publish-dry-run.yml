@@ -15,9 +15,6 @@ on:
         required: false
         default: '--feature-powerset'
         type: string
-      cargo-package-options:
-        required: false
-        type: string
 
 jobs:
 
@@ -27,9 +24,14 @@ jobs:
       CARGO_BUILD_TARGET: ${{ inputs.target }}
     steps:
     - uses: actions/checkout@v3
+
     - uses: stellar/actions/rust-cache@main
+
     - run: rustup update
     - run: rustup target add ${{ inputs.target }}
+    - if: inputs.target == 'aarch64-unknown-linux-gnu'
+      run: sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
     - uses: stellar/binaries@v12
       with:
         name: cargo-hack
@@ -69,4 +71,4 @@ jobs:
         --config "source.crates-io.replace-with = 'vendored-sources'"
         --config "source.vendored-sources.directory = 'vendor'"
         package
-        ${{ inputs.cargo-package-options }}
+        --target ${{ inputs.target }}
