@@ -42,7 +42,8 @@ jobs:
     # repos. These will be removed when published.
     - run: |
         sed --help
-        sed -i.bak -r '/git ?=/d' Cargo.toml
+        cp Cargo.toml Cargo.toml.bak
+        sed -r '/git ?=/d' Cargo.toml.bak > Cargo.toml
         cargo vendor --versioned-dirs
         mv Cargo.toml.bak Cargo.toml
 
