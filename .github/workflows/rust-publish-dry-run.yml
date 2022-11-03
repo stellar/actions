@@ -41,7 +41,6 @@ jobs:
     # [patch.crates-io] entries in the workspace Cargo.toml that reference git
     # repos. These will be removed when published.
     - run: |
-        sed --help
         cp Cargo.toml Cargo.toml.bak
         sed -r '/git ?=/d' Cargo.toml.bak > Cargo.toml
         cargo vendor --versioned-dirs
