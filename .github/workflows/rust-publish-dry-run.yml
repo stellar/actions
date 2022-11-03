@@ -16,6 +16,10 @@ on:
         default: '--feature-powerset'
         type: string
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
 
   publish-dry-run:
