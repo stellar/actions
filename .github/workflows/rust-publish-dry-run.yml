@@ -25,6 +25,7 @@ jobs:
         shell: bash
     env:
       CARGO_BUILD_TARGET: ${{ inputs.target }}
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
     steps:
     - uses: actions/checkout@v3
 
