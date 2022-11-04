@@ -78,9 +78,3 @@ jobs:
         --config "source.vendored-sources.directory = 'vendor'"
         package
         --target ${{ inputs.target }}
-
-    - if: always()
-      run: git status
-    - if: always()
-      run: git diff --color --ws-error-highlight=old,new,context
-
