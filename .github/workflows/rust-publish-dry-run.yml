@@ -7,22 +7,35 @@ on:
         required: false
         default: 'ubuntu-latest'
         type: string
+      target:
+        required: false
+        default: 'x86_64-unknown-linux-gnu'
+        type: string
       cargo-hack-feature-options:
         required: false
         default: '--feature-powerset'
-        type: string
-      cargo-package-options:
-        required: false
         type: string
 
 jobs:
 
   publish-dry-run:
     runs-on: ${{ inputs.runs-on }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_BUILD_TARGET: ${{ inputs.target }}
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
     steps:
     - uses: actions/checkout@v3
+
     - uses: stellar/actions/rust-cache@main
+
     - run: rustup update
+    - run: rustup target add ${{ inputs.target }}
+    - if: inputs.target == 'aarch64-unknown-linux-gnu'
+      run: sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
     - uses: stellar/binaries@v12
       with:
         name: cargo-hack
@@ -32,13 +45,15 @@ jobs:
     # [patch.crates-io] entries in the workspace Cargo.toml that reference git
     # repos. These will be removed when published.
     - run: |
-        sed -i.bak -r '/git ?=/d' Cargo.toml
+        cp Cargo.toml Cargo.toml.bak
+        sed -r '/git ?=/d' Cargo.toml.bak > Cargo.toml
         cargo vendor --versioned-dirs
+        rm Cargo.toml
         mv Cargo.toml.bak Cargo.toml
 
     # Package the crates that will be published. Verification is disabled because
     # we aren't ready to verify yet.
-    - run: cargo hack --ignore-private package --no-verify ${{ inputs.cargo-package-options }}
+    - run: cargo-hack hack --ignore-private package --no-verify ${{ inputs.cargo-package-options }}
 
     # Add each crate that was packaged to the vendor/ directory.
     - run: |
@@ -56,10 +71,10 @@ jobs:
     # the package command on the full feature powerset so that all features of
     # each crate are verified to compile.
     - run: >
-        cargo hack
+        cargo-hack hack
         ${{ inputs.cargo-hack-feature-options }}
         --ignore-private
         --config "source.crates-io.replace-with = 'vendored-sources'"
         --config "source.vendored-sources.directory = 'vendor'"
         package
-        ${{ inputs.cargo-package-options }}
+        --target ${{ inputs.target }}
