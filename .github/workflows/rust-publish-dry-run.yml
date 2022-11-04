@@ -81,7 +81,5 @@ jobs:
     - if: always()
       run: git status
     - if: always()
-      run: git diff --name-only
-    - if: always()
-      run: git diff --color --word-diff-regex=.
+      run: git diff --color --ws-error-highlight=old,new,context
 
