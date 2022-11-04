@@ -16,14 +16,13 @@ on:
         default: '--feature-powerset'
         type: string
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
 
   publish-dry-run:
     runs-on: ${{ inputs.runs-on }}
+    defaults:
+      run:
+        shell: bash
     env:
       CARGO_BUILD_TARGET: ${{ inputs.target }}
     steps:
