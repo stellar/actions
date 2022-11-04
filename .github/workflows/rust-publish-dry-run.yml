@@ -26,7 +26,6 @@ jobs:
     env:
       CARGO_BUILD_TARGET: ${{ inputs.target }}
     steps:
-    - run: git config --global core.autocrlf true
     - uses: actions/checkout@v3
 
     - uses: stellar/actions/rust-cache@main
@@ -80,4 +79,5 @@ jobs:
         --target ${{ inputs.target }}
 
     - if: always()
-      run: git diff
+      run: git diff --color --word-diff-regex=.
+
