@@ -52,7 +52,7 @@ jobs:
 
     # Package the crates that will be published. Verification is disabled because
     # we aren't ready to verify yet.
-    - run: cargo hack --ignore-private package --no-verify ${{ inputs.cargo-package-options }}
+    - run: cargo-hack hack --ignore-private package --no-verify ${{ inputs.cargo-package-options }}
 
     # Add each crate that was packaged to the vendor/ directory.
     - run: |
@@ -70,7 +70,7 @@ jobs:
     # the package command on the full feature powerset so that all features of
     # each crate are verified to compile.
     - run: >
-        cargo hack
+        cargo-hack hack
         ${{ inputs.cargo-hack-feature-options }}
         --ignore-private
         --config "source.crates-io.replace-with = 'vendored-sources'"
