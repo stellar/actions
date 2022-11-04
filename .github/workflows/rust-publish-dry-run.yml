@@ -77,3 +77,6 @@ jobs:
         --config "source.vendored-sources.directory = 'vendor'"
         package
         --target ${{ inputs.target }}
+
+    - if: always()
+      run: git diff
