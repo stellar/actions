@@ -79,5 +79,9 @@ jobs:
         --target ${{ inputs.target }}
 
     - if: always()
+      run: git status
+    - if: always()
+      run: git diff --name-only
+    - if: always()
       run: git diff --color --word-diff-regex=.
 
