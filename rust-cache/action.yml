@@ -47,7 +47,7 @@ runs:
   - shell: bash
     run: |
       echo "RUSTC_WRAPPER=$HOME/.local/bin/sccache${{ runner.os == 'Windows' && '.exe' || '' }}" >> $GITHUB_ENV
-      echo 'SCCACHE_CACHE_SIZE=9G' >> $GITHUB_ENV
+      echo 'SCCACHE_CACHE_SIZE=4G' >> $GITHUB_ENV
   - uses: actions/cache@v3
     with:
       path: ~/.cache/sccache
