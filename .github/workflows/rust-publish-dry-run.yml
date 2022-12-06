@@ -78,3 +78,11 @@ jobs:
         --config "source.vendored-sources.directory = 'vendor'"
         package
         --target ${{ inputs.target }}
+
+    # Try a publish --dry-run for each public (i.e. published) crate
+    - run: >
+        public_crates=$(cargo workspaces list)
+        for ws in $public_crates
+        do
+          cargo publish --dry-run --locked --package $ws
+        done
