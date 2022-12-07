@@ -34,7 +34,7 @@ jobs:
     - run: rustup update
     - run: rustup target add ${{ inputs.target }}
     - if: inputs.target == 'aarch64-unknown-linux-gnu'
-      run: sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+      run: sudo apt-get update && sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
     - uses: stellar/binaries@v12
       with:
