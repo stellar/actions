@@ -82,9 +82,8 @@ will kick off the builds.
 
 Make any changes to the `release/vX.Y.Z` branch needed to prepare for this
 release. This will probably involve:
- - Updating the versions of any dependencies that have since been released that
- the crates are dependent on. It's important to update any corresponding
- `[patch.*]` entries to match as well.
+ - Updating the versions and git refs of any dependencies that have since been
+ released that the crates are dependent on.
  - Update any docs.
 
 _CI will run the [rust-publish-dry-run] checks on `release/*` branches to verify
@@ -105,10 +104,13 @@ the `main` branch.
 First check that the `publish-dry-run` CI jobs have succeeded for the commit to
 be released.
 
-Draft a new release on GitHub for the repository.
+Draft a new release on GitHub for the repository by clicking on the relevant
+release link in the description of the PR from step 2.
 
 Specify the commit to be tagged as the latest commit on the `main` branch if
-step 3 was performed. Otherwise, use the commit on the `release/` branch.
+step 3 was performed. Otherwise, use the commit on the `release/` branch. Then
+click on the `Generate release notes` button to fill out the description of the
+release.
 
 ## 5. Close PR
 
