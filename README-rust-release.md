@@ -76,6 +76,10 @@ A PR will be opened that looks like this:
 
 ![](README-rust-release-2-pr.png)
 
+First, close and open the PR. This seems silly, but GitHub won't run workflows
+on PRs opened by a bot. Simply clicking the close and open buttons on the PR
+will kick off the builds.
+
 Make any changes to the `release/vX.Y.Z` branch needed to prepare for this
 release. This will probably involve:
  - Updating the versions of any dependencies that have since been released that
