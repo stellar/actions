@@ -1,5 +1,10 @@
 name: 'Rust Cache'
 description: 'Cache rust dep and build artifacts'
+
+inputs:
+  size:
+    default: 9G
+
 runs:
   using: "composite"
   steps:
@@ -47,15 +52,9 @@ runs:
   - shell: bash
     run: |
       echo "RUSTC_WRAPPER=$HOME/.local/bin/sccache${{ runner.os == 'Windows' && '.exe' || '' }}" >> $GITHUB_ENV
-      echo 'SCCACHE_CACHE_SIZE=9G' >> $GITHUB_ENV
-  - uses: actions/cache@v3
-    with:
-      path: ~/.cache/sccache
-      key: |
-        cargo-sccache-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-${{ github.sha }}
-      restore-keys: |
-        cargo-sccache-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-
-        cargo-sccache-${{ github.workflow }}-${{ github.job }}-
-  - if: github.ref_protected
+      echo 'SCCACHE_CACHE_SIZE=${{ inputs.size }}' >> $GITHUB_ENV
+      echo 'SCCACHE_GHA_CACHE_TO=cargo-sccache-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-${{ github.sha }}' >> $GITHUB_ENV
+  - if: '!github.ref_protected'
     shell: bash
-    run: rm -fr ~/.cache/sccache
+    run: |
+      echo 'SCCACHE_GHA_CACHE_FROM=cargo-sccache-${{ github.workflow }}-${{ github.job }}-${{ strategy.job-index }}-,cargo-sccache-${{ github.workflow }}-${{ github.job }}-' >> $GITHUB_ENV
