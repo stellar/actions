@@ -66,23 +66,16 @@ jobs:
           echo '{"files":{}}' > vendor/$name/.cargo-checksum.json
         done
 
-    # Rerun the package command but with verification enabled this time. Tell
-    # cargo to use the local vendor/ directory as the source for all packages. Run
-    # the package command on the full feature powerset so that all features of
-    # each crate are verified to compile.
+    # Try a publish --dry-run the package. Tell cargo to use the local vendor/
+    # directory as the source for all packages. Run the package command on
+    # the full feature powerset so that all features of each crate are
+    # verified to compile.
     - run: >
         cargo-hack hack
         ${{ inputs.cargo-hack-feature-options }}
+        --all
         --ignore-private
         --config "source.crates-io.replace-with = 'vendored-sources'"
         --config "source.vendored-sources.directory = 'vendor'"
-        package
+        publish --dry-run --locked
         --target ${{ inputs.target }}
-
-    # Try a publish --dry-run for each public (i.e. published) crate
-    - run: >
-        public_crates=$(cargo workspaces list)
-        for ws in $public_crates
-        do
-          cargo publish --dry-run --locked --package $ws
-        done
