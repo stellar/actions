@@ -26,9 +26,9 @@ The following workflows support the release process:
 | [rust-publish-dry-run] | Run a package verification on all crates in a workspace in their published form. |
 | [rust-publish] | Publish all crates in a workspace. |
 
-[rust-bump-version]: ./rust-bump-version.yml
-[rust-publish-dry-run]: ./rust-publish-dry-run.yml
-[rust-publish]: ./rust-publish.yml
+[rust-bump-version]: ./rust-bump-version/workflow.yml
+[rust-publish-dry-run]: ./rust-publish-dry-run/workflow.yml
+[rust-publish]: ./rust-publish/workflow.yml
 
 ## Release Types
 
