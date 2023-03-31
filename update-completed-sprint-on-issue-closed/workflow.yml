@@ -1,0 +1,68 @@
+name: Update CompletedSprint on Issue Closed
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  update_completed_sprint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get latest completed sprint
+        id: get_latest_completed_sprint
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const { data } = await github.graphql(`
+              query { 
+                organization(login: "stellar") {
+                  projectV2(number: 37) {
+                    field(name: "CompletedSprint") {
+                      options {
+                        id
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            `);
+
+            const latest_completed_sprint = Math.max.apply(Math, data.organization.projectV2.field.options.map(m => m.id));
+            return latest_completed_sprint;
+
+      - name: Update CompletedSprint field
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const latest_completed_sprint = ${{ steps.get_latest_completed_sprint.outputs.result }}
+            const issue_number = context.issue.number
+            const repo = context.repo
+            const issue_body = context.payload.issue.body
+
+            // TODO: Update the field
+            await github.graphql(`
+              mutation {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: "37",
+                  itemId: "?",
+                  fieldId: "?",
+                  value: {
+                    singleSelectOptionId: "?"
+                  }
+                }) {
+                }
+              }
+            `);
+            // Replace this regex pattern with the appropriate pattern for your issue body.
+            const completedSprintPattern = /^CompletedSprint:\s(.+)$/m
+            const updatedIssueBody = issue_body.replace(completedSprintPattern, `CompletedSprint: ${latest_completed_sprint}`)
+
+            if (issue_body !== updatedIssueBody) {
+              await github.rest.issues.update({
+                ...repo,
+                issue_number: issue_number,
+                body: updatedIssueBody
+              })
+            }
