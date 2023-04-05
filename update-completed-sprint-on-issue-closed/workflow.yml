@@ -3,6 +3,9 @@ name: Update CompletedSprint on Issue Closed
 on:
   issues:
     types: [closed]
+  pull_request:
+    types: [closed]
+
 
 jobs:
   update_completed_sprint:
@@ -19,7 +22,7 @@ jobs:
               payload.issue.html_url :
               payload.pull_request.html_url;
             const { data } = await github.graphql(`
-              query { 
+              query {
                 resource(url: "${url}") {
                   ... on ${eventName.startsWith('issue') ? 'Issue' : 'PullRequest'} {
                     id,
