@@ -52,6 +52,12 @@ workflows.
 | [rust-publish-dry-run] | Workflow | Run a package verification on all crates in a workspace in their published form. |
 | [rust-publish] | Workflow | Publish all crates in a workspace. |
 
+### Project Management
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [update-completed-sprint-on-issue-closed] | Workflow | Updates the CompletedSprint project field when an issue/PR is closed. |
+
 [@stellar]: https://github.com/stellar
 
 [rust-cache]: ./rust-cache
