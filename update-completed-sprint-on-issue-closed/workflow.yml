@@ -14,14 +14,23 @@ jobs:
         uses: actions/github-script@v5
         with:
           script: |
+            const eventName = context.eventName;
+            const url = eventName === 'issues' || eventName === 'issue_comment' ?
+              payload.issue.html_url :
+              payload.pull_request.html_url;
             const { data } = await github.graphql(`
               query { 
-                organization(login: "stellar") {
-                  projectV2(number: 37) {
-                    field(name: "CompletedSprint") {
-                      options {
+                resource(url: "${url}") {
+                  ... on ${eventName.startsWith('issue') ? 'Issue' : 'PullRequest'} {
+                    id,
+                    projectV2(number: 37) {
+                      id
+                      field(name: "CompletedSprint") {
                         id
-                        name
+                        options {
+                          id
+                          name
+                        }
                       }
                     }
                   }
@@ -29,40 +38,50 @@ jobs:
               }
             `);
 
-            const latest_completed_sprint = Math.max.apply(Math, data.organization.projectV2.field.options.map(m => m.id));
-            return latest_completed_sprint;
+            if (!data.resource?.projectV2?.field?.id) {
+              console.log("CompletedSprint field not found on this issue/PR").
+              return;
+            }
+
+            const sprints = data.resource.projectV2.field.options.filter(a =>
+              a.name.match(/sprint\s+(\d+)/i)
+            ).sort((a, b) => {
+              let amatch = Number(a.name.match(/sprint\s+(\d+)/i)[1]);
+              let bmatch = Number(b.name.match(/sprint\s+(\d+)/i)[1]);
+              if (amatch < bmatch) return -1;
+              if (amatch > bmatch) return 1;
+              return 0;
+            }).reverse();
+            if (sprints.length === 0) throw new Error("No last sprints found");
+
+            return {
+              item_id: data.resource.id,
+              project_id: data.resource.projectV2.id,
+              field_id: data.resource.projectV2.field.id,
+              sprint_id: sprints[0].id,
+            };
 
       - name: Update CompletedSprint field
         uses: actions/github-script@v5
         with:
           script: |
-            const latest_completed_sprint = ${{ steps.get_latest_completed_sprint.outputs.result }}
-            const issue_number = context.issue.number
-            const repo = context.repo
-            const issue_body = context.payload.issue.body
+            const {
+              item_id,
+              project_id,
+              field_id,
+              sprint_id,
+            } = ${{ steps.get_latest_completed_sprint.outputs }};
 
-            // TODO: Update the field
-            await github.graphql(`
+            // await github.graphql(`
+            console.log(`
               mutation {
                 updateProjectV2ItemFieldValue(input: {
-                  projectId: "37",
-                  itemId: "?",
-                  fieldId: "?",
+                  projectId: "${project_id}",
+                  itemId: "${item_id}",
+                  fieldId: "${field_id}",
                   value: {
-                    singleSelectOptionId: "?"
+                    singleSelectOptionId: "${sprint_id}"
                   }
-                }) {
-                }
+                })
               }
             `);
-            // Replace this regex pattern with the appropriate pattern for your issue body.
-            const completedSprintPattern = /^CompletedSprint:\s(.+)$/m
-            const updatedIssueBody = issue_body.replace(completedSprintPattern, `CompletedSprint: ${latest_completed_sprint}`)
-
-            if (issue_body !== updatedIssueBody) {
-              await github.rest.issues.update({
-                ...repo,
-                issue_number: issue_number,
-                body: updatedIssueBody
-              })
-            }
