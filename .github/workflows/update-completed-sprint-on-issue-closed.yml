@@ -65,26 +65,22 @@ jobs:
             }
 
             const projects = data.resource.projectsV2.nodes;
-            if (projects.length !== 1) {
-              throw new Error(`Project not found: ${project_name}`);
-            }
-
-            const project = projects[0];
-
-            if (!project.field?.id) {
-              console.log("${inputs.field_name} field not found on this issue/PR").
-              return;
-            }
-
             const projectItems = data.resource.projectItems.nodes?.filter(item =>
               item.project.id === project.id
             );
 
-            if (projectItems.length !== 1) {
-              throw new Error(`Item ${url} is not a member of the project: ${project_name}`);
+            if (projects.length !== 1 || projectItems.length !== 1) {
+              console.log(`Item ${url} is not a member of the project: ${project_name}`);
+              return
             }
 
+            const project = projects[0];
             const projectItem = projectItems[0];
+
+            if (!project.field?.id) {
+              console.log(`${inputs.field_name} field not found on this item`);
+              return;
+            }
 
             const sprints = project.field.options.filter(a =>
               a.name.match(/sprint\s+(\d+)/i)
