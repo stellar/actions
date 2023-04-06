@@ -65,5 +65,6 @@ workflows.
 [rust-bump-version]: ./.github/workflows/rust-bump-version.yml
 [rust-publish-dry-run]: ./.github/workflows/rust-publish-dry-run.yml
 [rust-publish]: ./.github/workflows/rust-publish.yml
+[update-completed-sprint-on-issue-closed]: ./.github/workflows/update-completed-sprint-on-issue-closed.yml
 
 [README-rust-release.md]: README-rust-release.md
