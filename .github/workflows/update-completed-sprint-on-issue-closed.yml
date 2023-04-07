@@ -1,0 +1,131 @@
+name: Update Project Field on Issue/PR Closed
+
+on:
+  workflow_call:
+    inputs:
+      project_name:
+        description: 'Name of the Project which tracks completed sprints'
+        type: 'string'
+        required: true
+      field_name:
+        description: 'Name of the Field in the project to update'
+        type: 'string'
+        required: false
+        default: 'CompletedSprint'
+
+jobs:
+  update_completed_sprint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get latest completed sprint
+        id: get_latest_completed_sprint
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const eventName = context.eventName;
+            const url = eventName === 'issues'
+              ? payload.issue.html_url
+              : payload.pull_request.html_url;
+            const { data } = await github.graphql(`
+              query {
+                resource(url: "${url}") {
+                  ... on ${eventName.startsWith('issue') ? 'Issue' : 'PullRequest'} {
+                    id
+                    projectItems(first: 10) {
+                      nodes {
+                        id
+                        project {
+                          id
+                        }
+                      }
+                    }
+                    projectsV2(query: "${inputs.project_name}", first: 1) {
+                      nodes {
+                        id
+                        field(name: "${inputs.field_name}") {
+                          ... on ProjectV2SingleSelectField {
+                            id
+                            options {
+                              id
+                              name
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `);
+
+            const resource = data.resource;
+            if (!data.resource) {
+              throw new Error(`Issue/PR not found: ${url}`);
+            }
+
+            const projects = data.resource.projectsV2.nodes;
+            const projectItems = data.resource.projectItems.nodes?.filter(item =>
+              item.project.id === project.id
+            );
+
+            if (projects.length === 0 || projectItems.length === 0) {
+              console.log(`Item ${url} is not a member of the project: ${project_name}`);
+              return
+            }
+            if (projects.length > 1 || projectItems.length > 1) {
+              console.log(`Item ${url} is a member of multiple projects named: ${project_name}`);
+              return
+            }
+
+            const project = projects[0];
+            const projectItem = projectItems[0];
+
+            if (!project.field?.id) {
+              console.log(`${inputs.field_name} field not found on this item`);
+              return;
+            }
+
+            const sprints = project.field.options.filter(a =>
+              a.name.match(/sprint\s+(\d+)/i)
+            ).sort((a, b) => {
+              let amatch = Number(a.name.match(/sprint\s+(\d+)/i)[1]);
+              let bmatch = Number(b.name.match(/sprint\s+(\d+)/i)[1]);
+              if (amatch < bmatch) return -1;
+              if (amatch > bmatch) return 1;
+              return 0;
+            }).reverse();
+            if (sprints.length === 0) throw new Error("No last sprints found");
+
+            return {
+              item_id: projectItem.id,
+              project_id: project.id,
+              field_id: project.field.id,
+              sprint_id: sprints[0].id,
+            };
+
+      - name: Update the completed sprint
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const {
+              item_id,
+              project_id,
+              field_id,
+              sprint_id,
+            } = ${{ steps.get_latest_completed_sprint.outputs }};
+
+            await github.graphql(`
+              mutation {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: "${project_id}",
+                  itemId: "${item_id}",
+                  fieldId: "${field_id}",
+                  value: {
+                    singleSelectOptionId: "${sprint_id}"
+                  }
+                }) {
+                  clientMutationId
+                }
+              }
+            `);
