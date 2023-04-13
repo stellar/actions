@@ -8,12 +8,13 @@ import * as github from '@actions/github';
     const field_name = core.getInput('field_name');
     const context = github.context;
 
-    const octokit = github.getOctokit(token)
+    const octokit = github.getOctokit(token);
 
     const eventName = context.eventName;
     const url = eventName === 'issues'
       ? context.payload.issue.html_url
       : context.payload.pull_request.html_url;
+    console.debug(`url: ${url}`);
     const { resource } = await octokit.graphql<Record<string, any>>(`
       query {
         resource(url: "${url}") {
@@ -45,6 +46,7 @@ import * as github from '@actions/github';
         }
       }
     `);
+    console.debug(`resource: ${JSON.stringify(resource)}`);
 
     if (!resource) {
       throw new Error(`Issue/PR not found: ${url}`);
