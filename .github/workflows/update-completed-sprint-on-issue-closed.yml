@@ -23,10 +23,12 @@ jobs:
         with:
           node-version: 16
       - run: npm ci
+        working-directory: ./update-completed-sprint-on-issue-closed
       - name: Update the completed sprint
         id: update_completed_sprint
         uses: actions/github-script@v5
+        working-directory: ./update-completed-sprint-on-issue-closed
         with:
           script: |
-            const script = require('${{ github.workspace }}/update-completed-sprint-on-issue-closed/dist/index.js');
+            const script = require('./dist/index.js');
             await script();
