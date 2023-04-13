@@ -5,8 +5,8 @@
 	"private": true,
 	"main": "dist/index.js",
 	"scripts": {
-		"watch": "ncc build src/index.ts --watch --minify",
-		"build": "ncc build src/index.ts --minify"
+		"watch": "ncc build src/index.ts --source-map --watch",
+		"build": "ncc build src/index.ts --source-map"
 	},
 	"author": "Paul Bellamy <paul@stellar.org>",
 	"dependencies": {
