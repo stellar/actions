@@ -3,7 +3,7 @@ import * as github from '@actions/github';
 
 (async function() {
   try {
-    const token = process.env.GITHUB_TOKEN;
+    const token = core.getInput('project_token');
     const project_name = core.getInput('project_name');
     const field_name = core.getInput('field_name');
     const context = github.context;
