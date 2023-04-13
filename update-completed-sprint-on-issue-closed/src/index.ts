@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 
-export default async function() {
+(async function() {
   try {
     const token = process.env.GITHUB_TOKEN;
     const project_name = core.getInput('project_name');
@@ -105,4 +105,4 @@ export default async function() {
   } catch (error) {
 		core.setFailed(error.message);
 	}
-}
+})();

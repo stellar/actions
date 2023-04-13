@@ -1,0 +1,15 @@
+name: 'Update Project Field on Issue/PR Closed'
+description: 'Update Project Field when a Issue or PR is Closed'
+inputs:
+  project_name:
+    description: 'Name of the Project which tracks completed sprints'
+    type: 'string'
+    required: true
+  field_name:
+    description: 'Name of the Field in the project to update'
+    type: 'string'
+    required: false
+    default: 'CompletedSprint'
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
