@@ -9894,16 +9894,24 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
                 throw new Error(`Issue/PR not found: ${url}`);
             }
             const projects = resource.projectsV2.nodes;
-            const projectItems = (_a = resource.projectItems.nodes) === null || _a === void 0 ? void 0 : _a.filter((item) => item.project.id === project.id);
-            if (projects.length === 0 || projectItems.length === 0) {
+            if (projects.length === 0) {
                 console.log(`Item ${url} is not a member of the project: ${project_name}`);
                 return;
             }
-            if (projects.length > 1 || projectItems.length > 1) {
+            if (projects.length > 1) {
                 console.log(`Item ${url} is a member of multiple projects named: ${project_name}`);
                 return;
             }
             const project = projects[0];
+            const projectItems = (_a = resource.projectItems.nodes) === null || _a === void 0 ? void 0 : _a.filter((item) => item.project.id === project.id);
+            if (projectItems.length === 0) {
+                console.log(`Item ${url} is not a member of the project: ${project_name}`);
+                return;
+            }
+            if (projectItems.length > 1) {
+                console.log(`Item ${url} is a member of multiple projects named: ${project_name}`);
+                return;
+            }
             const projectItem = projectItems[0];
             if (!((_b = project.field) === null || _b === void 0 ? void 0 : _b.id)) {
                 console.log(`${field_name} field not found on this item`);

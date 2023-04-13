@@ -53,20 +53,29 @@ import * as github from '@actions/github';
     }
 
     const projects = resource.projectsV2.nodes;
-    const projectItems = resource.projectItems.nodes?.filter((item: any) =>
-      item.project.id === project.id
-    );
-
-    if (projects.length === 0 || projectItems.length === 0) {
+    if (projects.length === 0) {
       console.log(`Item ${url} is not a member of the project: ${project_name}`);
       return
     }
-    if (projects.length > 1 || projectItems.length > 1) {
+    if (projects.length > 1) {
       console.log(`Item ${url} is a member of multiple projects named: ${project_name}`);
       return
     }
 
     const project = projects[0];
+    const projectItems = resource.projectItems.nodes?.filter((item: any) =>
+      item.project.id === project.id
+    );
+
+    if (projectItems.length === 0) {
+      console.log(`Item ${url} is not a member of the project: ${project_name}`);
+      return
+    }
+    if (projectItems.length > 1) {
+      console.log(`Item ${url} is a member of multiple projects named: ${project_name}`);
+      return
+    }
+
     const projectItem = projectItems[0];
 
     if (!project.field?.id) {
