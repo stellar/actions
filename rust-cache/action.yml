@@ -23,19 +23,19 @@ runs:
         cargo-target-global-${{ github.workflow }}-${{ github.job }}-
   - shell: bash
     env:
-      SCCACHE_VERSION: v0.3.0
+      SCCACHE_VERSION: v0.4.1
       SCCACHE_FILE: >-
-        ${{ (runner.os == 'Linux' && 'sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz')
-        || (runner.os == 'macOS' && 'sccache-v0.3.0-x86_64-apple-darwin.tar.gz')
-        || (runner.os == 'Windows' && 'sccache-v0.3.0-x86_64-pc-windows-msvc.tar.gz') }}
+        ${{ (runner.os == 'Linux' && 'sccache-v0.4.1-x86_64-unknown-linux-musl.tar.gz')
+        || (runner.os == 'macOS' && 'sccache-v0.4.1-x86_64-apple-darwin.tar.gz')
+        || (runner.os == 'Windows' && 'sccache-v0.4.1-x86_64-pc-windows-msvc.tar.gz') }}
       SCCACHE_FILE_SHA256: >-
-        ${{ (runner.os == 'Linux' && 'e6cd8485f93d683a49c83796b9986f090901765aa4feb40d191b03ea770311d8')
-        || (runner.os == 'macOS' && '61c16fd36e32cdc923b66e4f95cb367494702f60f6d90659af1af84c3efb11eb')
-        || (runner.os == 'Windows' && 'f25e927584d79d0d5ad489e04ef01b058dad47ef2c1633a13d4c69dfb83ba2be') }}
+        ${{ (runner.os == 'Linux' && 'f077d92ca86d71bc55aebeeb6e8dc557fef481446ccc82504aeedf1fe6e1f657')
+        || (runner.os == 'macOS' && 'a291f1d90c6b25726866f018ec6071fa4d20ca443ad91fe5dfb9740eb4ebc45a')
+        || (runner.os == 'Windows' && '7508cfa20b045a891eba2f7298afb8faec886d40d10b844830160b096fe99874') }}
       SCCACHE_DIR: >-
-        ${{ (runner.os == 'Linux' && 'sccache-v0.3.0-x86_64-unknown-linux-musl')
-        || (runner.os == 'macOS' && 'sccache-v0.3.0-x86_64-apple-darwin')
-        || (runner.os == 'Windows' && 'sccache-v0.3.0-x86_64-pc-windows-msvc') }}
+        ${{ (runner.os == 'Linux' && 'sccache-v0.4.1-x86_64-unknown-linux-musl')
+        || (runner.os == 'macOS' && 'sccache-v0.4.1-x86_64-apple-darwin')
+        || (runner.os == 'Windows' && 'sccache-v0.4.1-x86_64-pc-windows-msvc') }}
       SCCACHE_BIN_FILE: sccache${{ runner.os == 'Windows' && '.exe' || '' }}
       SHASUM: ${{ runner.os == 'macOS' && 'shasum' || 'sha256sum' }}
     run: |
