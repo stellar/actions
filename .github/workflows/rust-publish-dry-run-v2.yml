@@ -64,12 +64,10 @@ jobs:
           version=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name=="'$name'") | .version')
           cargo package --package $name --no-verify
           path="target/package/${name}-${version}.crate"
-          echo $path
-          ls target/package
           tar xvfz "$path" -C vendor/
           # Crates in the vendor directory require a checksum file, but it doesn't
           # matter if it is empty.
-          echo '{"files":{}}' > vendor/$name/.cargo-checksum.json
+          echo '{"files":{}}' > vendor/$name-$version/.cargo-checksum.json
         done
 
     # Rerun the package command but with verification enabled this time. Tell
