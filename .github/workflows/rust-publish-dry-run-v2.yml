@@ -62,7 +62,11 @@ jobs:
         for name in ${{ inputs.crates }}
         do
           version=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name=="'$name'") | .version')
-          cargo package --package $name --no-verify
+          cargo package \
+            --no-verify \
+            --package $name \
+            --config "source.crates-io.replace-with = 'vendored-sources'" \
+            --config "source.vendored-sources.directory = 'vendor'"
           path="target/package/${name}-${version}.crate"
           tar xvfz "$path" -C vendor/
           # Crates in the vendor directory require a checksum file, but it doesn't
