@@ -2,6 +2,8 @@
 # a crate containing bin targets that are dependent on other crates in the
 # repository. Please use `rust-publish-dry-run-v2` for any repository containing
 # binaries.
+#
+# For more details, see https://github.com/rust-lang/cargo/issues/11181.
 
 name: Publish Dry Run
 
