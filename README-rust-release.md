@@ -23,11 +23,13 @@ The following workflows support the release process:
 | Name | Description |
 | ---- | ----------- |
 | [rust-bump-version] | Updates the version in Rust crates to a input version. |
-| [rust-publish-dry-run] | Run a package verification on all crates in a workspace in their published form. |
+| [rust-publish-dry-run] | Run a package verification on all crates in a workspace in their published form that automatically figures out the crate dependencies and order to publish (works only for repos without a binary). |
+| [rust-publish-dry-run-v2] | Run a package verification on all crates in a workspace in their published form that requires an explicit list of crates to publish (works with all repos). |
 | [rust-publish] | Publish all crates in a workspace. |
 
 [rust-bump-version]: ./rust-bump-version/workflow.yml
 [rust-publish-dry-run]: ./rust-publish-dry-run/workflow.yml
+[rust-publish-dry-run-v2]: ./rust-publish-dry-run-v2/workflow.yml
 [rust-publish]: ./rust-publish/workflow.yml
 
 ## Release Types
@@ -86,10 +88,11 @@ release. This will probably involve:
  released that the crates are dependent on.
  - Update any docs.
 
-_CI will run the [rust-publish-dry-run] checks on `release/*` branches to verify
-that when the crates are published their publish will succeed. This means you
-might see errors on CI that didn't exist before. These errors need resolving. If
-you see any errors you don't understand, ask in [#lang-rust]._
+_CI will run the [rust-publish-dry-run] or [rust-publish-dry-run-v2] checks on
+`release/*` branches to verify that when the crates are published their publish
+will succeed. This means you might see errors on CI that didn't exist before.
+These errors need resolving. If you see any errors you don't understand, ask in
+[#lang-rust]._
 
 ## 3. Merge PR
 
@@ -101,8 +104,8 @@ the `main` branch.
 
 ## 4. Create Release on GitHub
 
-First check that the `publish-dry-run` CI jobs have succeeded for the commit to
-be released.
+First check that the `publish-dry-run` or `publish-dry-run-v2` CI jobs have
+succeeded for the commit to be released.
 
 Draft a new release on GitHub for the repository by clicking on the relevant
 release link in the description of the PR from step 2.
