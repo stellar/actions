@@ -23,8 +23,8 @@ The following workflows support the release process:
 | Name | Description |
 | ---- | ----------- |
 | [rust-bump-version] | Updates the version in Rust crates to a input version. |
-| [rust-publish-dry-run] | Run a package verification on all crates in a workspace in their published form. |
-| [rust-publish-dry-run-v2] | Run a package verification on all crates in a workspace in their published form. |
+| [rust-publish-dry-run] | Run a package verification on all crates in a workspace in their published form that automatically figures out the crate dependencies and order to publish (works only for repos without a binary). |
+| [rust-publish-dry-run-v2] | Run a package verification on all crates in a workspace in their published form that requires an explicit list of crates to publish (works with all repos). |
 | [rust-publish] | Publish all crates in a workspace. |
 
 [rust-bump-version]: ./rust-bump-version/workflow.yml
