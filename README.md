@@ -50,6 +50,7 @@ workflows.
 | ---- | ---- | ----------- |
 | [rust-bump-version] | Workflow | Updates the version in Rust crates to a input version. |
 | [rust-publish-dry-run] | Workflow | Run a package verification on all crates in a workspace in their published form. |
+| [rust-publish-dry-run-v2] | Workflow | Run a package verification on all crates in a workspace in their published form. |
 | [rust-publish] | Workflow | Publish all crates in a workspace. |
 
 ### Project Management
@@ -64,6 +65,7 @@ workflows.
 [rust-set-rust-version]: ./.github/workflows/rust-set-rust-version.yml
 [rust-bump-version]: ./.github/workflows/rust-bump-version.yml
 [rust-publish-dry-run]: ./.github/workflows/rust-publish-dry-run.yml
+[rust-publish-dry-run-v2]: ./.github/workflows/rust-publish-dry-run-v2.yml
 [rust-publish]: ./.github/workflows/rust-publish.yml
 [update-completed-sprint-on-issue-closed]: ./.github/workflows/update-completed-sprint-on-issue-closed.yml
 
