@@ -61,7 +61,6 @@ jobs:
     - run: |
         for name in ${{ inputs.crates }}
         do
-          name=$(basename "$crate" .crate)
           cargo package --package $name --no-verify
           tar xvfz "$crate" -C vendor/
           # Crates in the vendor directory require a checksum file, but it doesn't
