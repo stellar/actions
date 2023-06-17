@@ -6,6 +6,7 @@ on:
       crates:
         description: 'Space separated list of crate names in the order to be published.'
         required: true
+        type: string
       runs-on:
         required: false
         default: 'ubuntu-latest'
