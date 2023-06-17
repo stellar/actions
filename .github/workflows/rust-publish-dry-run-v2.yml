@@ -1,4 +1,4 @@
-name: Publish Dry Run
+name: Publish Dry Run v2
 
 on:
   workflow_call:
