@@ -1,3 +1,8 @@
+# WARNING: This publish dry run process will not work on repositories that have
+# a crate containing bin targets that are dependent on other crates in the
+# repository. Please use `rust-publish-dry-run-v2` for any repository containing
+# binaries.
+
 name: Publish Dry Run
 
 on:
