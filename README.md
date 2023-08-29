@@ -40,6 +40,7 @@ jobs:
 | ---- | ---- | ----------- |
 | [rust-cache] | Action | Caches dependencies, install artifacts, and build artifacts in Rust projects. |
 | [rust-set-rust-version] | Workflow | Updates the rust-version in Rust crates to the latest stable version. |
+| [rust-check-git-rev-deps] | Workflow | Check that git rev dependencies do not reference revisions likely to be orphaned. |
 
 #### Releasing / Publishing
 
