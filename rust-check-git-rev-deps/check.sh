@@ -18,13 +18,13 @@ cargo metadata --format-version 1 --no-deps \
     found=0
     for ref in . $(git tag); do
       git -c advice.detachedHead=false checkout "$ref"
-      branch="$(git describe --all)"
-      echo -e "\033[1;33mChecking is in "$branch"\033[0m"
+      desc="$(git describe --all)"
+      echo -e "\033[1;33mChecking is in "$desc"\033[0m"
       if git merge-base --is-ancestor HEAD "$sha"; then
-        echo -e "\033[1;32mCommit is in the history of $branch.\033[0m"
+        echo -e "\033[1;32mCommit is in the history of $desc.\033[0m"
         found=1
       else
-        echo -e "\033[1;31mCommit is NOT in the history of $branch.\033[0m"
+        echo -e "\033[1;31mCommit is NOT in the history of $desc.\033[0m"
       fi
     done
     if (( $found == 0 )); then
