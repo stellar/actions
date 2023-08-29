@@ -16,8 +16,8 @@ cargo metadata --format-version 1 --no-deps \
     git clone "$repo" "$temp"
     pushd "$temp"
     found=0
-    for tag in . $(git tag); do
-      git -c advice.detachedHead=false checkout "$tag"
+    for ref in . $(git tag); do
+      git -c advice.detachedHead=false checkout "$ref"
       branch="$(git describe --all)"
       echo -e "\033[1;33mChecking is in "$branch"\033[0m"
       if git merge-base --is-ancestor HEAD "$sha"; then
