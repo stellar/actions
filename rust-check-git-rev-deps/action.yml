@@ -4,5 +4,4 @@ runs:
   using: "composite"
   steps:
   - shell: bash
-    run: |
-      ./check.sh
+    run: ${{ github.action_path }}/check.sh
