@@ -1,0 +1,7 @@
+name: 'Rust Check Git Rev Deps'
+description: 'Check that git revision dependencies are unlikely to be orphaned'
+runs:
+  using: "composite"
+  steps:
+  - shell: bash
+    run: ${{ github.action_path }}/check.sh
