@@ -15,14 +15,12 @@ cargo metadata --format-version 1 --no-deps \
       # that the commit can be found in at least one of them.
       temp=$(mktemp -d)
       echo -e "\033[1;34mChecking "$repo" @ "$sha"\033[0m"
-      git clone "$repo" "$temp"
-      pushd "$temp"
+      git clone --quiet "$repo" "$temp"
+      pushd "$temp" > /dev/null
       found=0
-      for ref in . $(git tag); do
-        git -c advice.detachedHead=false checkout "$ref"
-        desc="$(git describe --all)"
-        echo -e "\033[1;33mChecking is in "$desc"\033[0m"
-        if git merge-base --is-ancestor "$sha" HEAD; then
+      for ref in HEAD $(git tag); do
+        desc="$(git describe --all "$ref")"
+        if git merge-base --is-ancestor "$sha" "$ref"; then
           echo -e "\033[1;32mCommit is in the history of $desc.\033[0m"
           found=1
         else
@@ -32,7 +30,7 @@ cargo metadata --format-version 1 --no-deps \
       if (( $found == 0 )); then
         fails=1
       fi
-      popd
+      popd > /dev/null
     done
     if (( $fails > 0 )); then
       echo -e "\033[1;31mDependency revisions must reference a version of the dependency that is on the default branch, or a tag, so that they do not become orphaned.\033[0m"
