@@ -18,17 +18,20 @@ cargo metadata --format-version 1 --no-deps \
       git clone --quiet "$repo" "$temp"
       pushd "$temp" > /dev/null
       found=0
-      for ref in HEAD $(git tag); do
-        desc="$(git describe --all "$ref")"
-        if git merge-base --is-ancestor "$sha" "$ref"; then
-          echo -e "\033[1;32mCommit is in the history of $desc.\033[0m"
-          found=1
-        else
-          echo -e "Commit is NOT in the history of $desc."
-        fi
-      done
+      if git fetch --quiet origin "$sha"; then
+        for ref in HEAD $(git tag); do
+          desc="$(git describe --all "$ref")"
+          if git merge-base --is-ancestor "$sha" "$ref"; then
+            echo -e "\033[1;32mCommit is in the history of $desc.\033[0m"
+            found=1
+          fi
+        done
+      else
+        echo -e "Commit NOT found in repository at all"
+      fi
       if (( $found == 0 )); then
         fails=1
+        echo -e "Commit NOT found in the history of the default branch, or any tag."
       fi
       popd > /dev/null
     done
