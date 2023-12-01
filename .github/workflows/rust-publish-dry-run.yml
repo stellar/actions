@@ -48,6 +48,11 @@ jobs:
         name: cargo-hack
         version: 0.5.16
 
+    # Create the vendor directory because it'll only be created in the next step
+    # if the crate has dependencies, but it's needed for the latter steps in all
+    # cases.
+    - run: mkdir -P vendor
+
     # Vendor all the dependencies into the vendor/ folder. Temporarily remove
     # [patch.crates-io] entries in the workspace Cargo.toml that reference git
     # repos. These will be removed when published.
