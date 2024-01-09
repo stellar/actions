@@ -43,10 +43,10 @@ jobs:
     - if: inputs.target == 'aarch64-unknown-linux-gnu'
       run: sudo apt-get update && sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-    - uses: stellar/binaries@v12
+    - uses: stellar/binaries@v18
       with:
         name: cargo-hack
-        version: 0.5.16
+        version: 0.5.28
 
     # Create the vendor directory because it'll only be created in the next step
     # if the crate has dependencies, but it's needed for the latter steps in all
