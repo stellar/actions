@@ -42,14 +42,13 @@ jobs:
 
     # On macOS targets, update make to the latest version of GNU Make
     - if: inputs.target == 'x86_64-apple-darwin' || inputs.target == 'aarch64-apple-darwin'
-      name: Update GNU Make (macOS)
+      name: Update GNU Make (macOS only)
       run: |
         which make
         make --version
         brew update && brew install make
-        export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
-        ls /usr/local/opt/make/libexec/gnubin/make
-        # mv /usr/local/opt/make/libexec/gnubin/make /usr/bin/make
+        ls /usr/local/opt/make/libexec/gnubin/
+        mv /usr/local/opt/make/libexec/gnubin/make /usr/bin/make
         make --version
         which make
 
