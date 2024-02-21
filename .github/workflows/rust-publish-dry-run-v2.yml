@@ -47,10 +47,9 @@ jobs:
         which make
         make --version
         brew update && brew install make
-        ls /usr/local/opt/make/libexec/gnubin/
-        mv /usr/local/opt/make/libexec/gnubin/make /usr/bin/make
-        make --version
+        export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
         which make
+        make --version
 
     - uses: stellar/binaries@v18
       with:
