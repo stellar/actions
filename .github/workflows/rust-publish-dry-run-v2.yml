@@ -33,6 +33,7 @@ jobs:
       RUST_BACKTRACE: 1
     steps:
     - uses: actions/checkout@v4
+
     - uses: stellar/actions/rust-cache@main
 
     - run: rustup update
@@ -91,9 +92,9 @@ jobs:
     - name: Verify Crates with ${{ inputs.cargo-hack-feature-options }}
       run: >
         cargo-hack hack
-          ${{ inputs.cargo-hack-feature-options }}
-          --ignore-private
-          --config "source.crates-io.replace-with = 'vendored-sources'"
-          --config "source.vendored-sources.directory = 'vendor'"
-          package
-          --target ${{ inputs.target }}
+        ${{ inputs.cargo-hack-feature-options }}
+        --ignore-private
+        --config "source.crates-io.replace-with = 'vendored-sources'"
+        --config "source.vendored-sources.directory = 'vendor'"
+        package
+        --target ${{ inputs.target }}
