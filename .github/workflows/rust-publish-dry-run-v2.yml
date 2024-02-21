@@ -40,7 +40,12 @@ jobs:
     - if: inputs.target == 'aarch64-unknown-linux-gnu'
       run: sudo apt-get update && sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
     - if: inputs.target == 'x86_64-apple-darwin' || inputs.target == 'aarch64-apple-darwin'
-      run: brew update && brew install make
+      run: |
+        which make
+        make --version
+        brew update && brew install make
+        make --version
+
     - uses: stellar/binaries@v18
       with:
         name: cargo-hack
