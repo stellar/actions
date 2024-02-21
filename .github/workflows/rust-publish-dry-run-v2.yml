@@ -30,6 +30,7 @@ jobs:
     env:
       CARGO_BUILD_TARGET: ${{ inputs.target }}
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+      RUST_BACKTRACE: 1
     steps:
     - uses: actions/checkout@v4
     - uses: stellar/actions/rust-cache@main
@@ -37,12 +38,12 @@ jobs:
     - run: rustup update
     - run: rustup target add ${{ inputs.target }}
 
-    - if: inputs.target == 'aarch64-unknown-linux-gnu'
+    - name: Install add'l compilers (Linux arm64 only)
+      if: inputs.target == 'aarch64-unknown-linux-gnu'
       run: sudo apt-get update && sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-    # On macOS targets, update make to the latest version of GNU Make
-    - if: inputs.target == 'x86_64-apple-darwin' || inputs.target == 'aarch64-apple-darwin'
-      name: Update GNU Make (macOS only)
+    - name: Update GNU Make (macOS only)
+      if: inputs.target == 'x86_64-apple-darwin' || inputs.target == 'aarch64-apple-darwin'
       run: |
         brew update && brew install make
         export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
