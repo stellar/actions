@@ -94,7 +94,9 @@ jobs:
     # each crate are verified to compile.
     - name: Verify Crates with ${{ inputs.cargo-hack-feature-options }}
       run: >
-        make --version && cargo-hack hack
+        export PATH="/usr/local/opt/make/libexec/gnubin:$PATH" &&
+        make --version &&
+        cargo-hack hack
         ${{ inputs.cargo-hack-feature-options }}
         --ignore-private
         --config "source.crates-io.replace-with = 'vendored-sources'"
