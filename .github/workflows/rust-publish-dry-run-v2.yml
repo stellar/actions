@@ -48,9 +48,7 @@ jobs:
         which make
         make --version
         brew update && brew install make
-        export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
-        which make
-        make --version
+        echo "/usr/local/opt/make/libexec/gnubin/" >> $GITHUB_PATH
 
     - uses: stellar/binaries@v18
       with:
