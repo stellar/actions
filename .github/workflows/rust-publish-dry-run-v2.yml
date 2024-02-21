@@ -36,16 +36,22 @@ jobs:
 
     - run: rustup update
     - run: rustup target add ${{ inputs.target }}
+
     - if: inputs.target == 'aarch64-unknown-linux-gnu'
       run: sudo apt-get update && sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+    # On macOS targets, update make to the latest version of GNU Make
     - if: inputs.target == 'x86_64-apple-darwin' || inputs.target == 'aarch64-apple-darwin'
+      name: Update GNU Make (macOS)
       run: |
         which make
         make --version
         brew update && brew install make
-        export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
-        mv /usr/local/opt/make/libexec/gnubin/gmake /usr/bin/make
+        # export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
+        # mv /usr/local/opt/make/libexec/gnubin/make /usr/bin/make
+        alias make=gmake
         make --version
+        which make
 
     - uses: stellar/binaries@v18
       with:
