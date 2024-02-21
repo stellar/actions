@@ -45,8 +45,11 @@ jobs:
     - name: Update GNU Make (macOS only)
       if: inputs.target == 'x86_64-apple-darwin' || inputs.target == 'aarch64-apple-darwin'
       run: |
+        which make
+        make --version
         brew update && brew install make
         export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
+        which make
         make --version
 
     - uses: stellar/binaries@v18
@@ -91,7 +94,7 @@ jobs:
     # each crate are verified to compile.
     - name: Verify Crates with ${{ inputs.cargo-hack-feature-options }}
       run: >
-        cargo-hack hack
+        make --version && cargo-hack hack
         ${{ inputs.cargo-hack-feature-options }}
         --ignore-private
         --config "source.crates-io.replace-with = 'vendored-sources'"
