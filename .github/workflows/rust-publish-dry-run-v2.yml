@@ -44,11 +44,8 @@ jobs:
     - if: inputs.target == 'x86_64-apple-darwin' || inputs.target == 'aarch64-apple-darwin'
       name: Update GNU Make (macOS only)
       run: |
-        which make
-        make --version
         brew update && brew install make
         export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
-        which make
         make --version
 
     - uses: stellar/binaries@v18
