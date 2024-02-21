@@ -46,7 +46,7 @@ jobs:
       if: inputs.target == 'x86_64-apple-darwin' || inputs.target == 'aarch64-apple-darwin'
       run: |
         brew update && brew install make
-        echo "/usr/local/opt/make/libexec/gnubin/" >> $GITHUB_PATH
+        echo "$(brew --prefix)/opt/make/libexec/gnubin/" >> $GITHUB_PATH
 
     - uses: stellar/binaries@v18
       with:
