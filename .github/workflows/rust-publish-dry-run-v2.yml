@@ -63,7 +63,7 @@ jobs:
       run: |
         for name in ${{ inputs.crates }}
         do
-          version=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name=="'$name'") | .version')
+          version=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name=="'$name'") | .version')
           cargo package \
             --no-verify \
             --package $name \
