@@ -28,6 +28,10 @@ jobs:
       continue-on-error: true
       run: |
         cargo set-version ${{ inputs.version }}
+    - name: Diff
+      run: |
+        git add -N .
+        git diff
     - name: Create Commit
       run: |
         git config --global user.name 'github-actions[bot]'
