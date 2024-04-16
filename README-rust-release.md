@@ -110,6 +110,10 @@ succeeded for the commit to be released.
 Draft a new release on GitHub for the repository by clicking on the relevant
 release link in the description of the PR from step 2.
 
+> [!WARNING]
+> 
+> Ensure the release is defined as just the numbers; e.g use `0.0.0` instead of `v0.0.0`.
+
 Specify the commit to be tagged as the latest commit on the `main` branch if
 step 3 was performed. Otherwise, use the commit on the `release/` branch. Then
 click on the `Generate release notes` button to fill out the description of the
@@ -117,8 +121,7 @@ release.
 
 ## 5. Close PR
 
-**Skip this step if releasing from the `main` branch for a regular release,
-*since the PR is already merged.**
+**Skip this step if releasing from the `main` branch for a regular release, since the PR is already merged.**
 
 Once the release is created close the release branch PR. If there are changes on
 that branch that should be ported to `main`, do that separately by
