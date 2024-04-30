@@ -43,7 +43,7 @@ jobs:
     - if: inputs.target == 'aarch64-unknown-linux-gnu'
       run: sudo apt-get update && sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-    - uses: stellar/binaries@v18
+    - uses: stellar/binaries@v21
       with:
         name: cargo-hack
         version: 0.5.28
