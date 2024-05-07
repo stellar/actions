@@ -50,8 +50,8 @@ jobs:
       run: |
         brew update && brew install make
         echo "$(brew --prefix)/opt/make/libexec/gnubin/" >> $GITHUB_PATH
-
-    - uses: stellar/binaries@v18
+        
+    - uses: stellar/binaries@v21
       with:
         name: cargo-hack
         version: 0.5.28
@@ -74,7 +74,7 @@ jobs:
       run: |
         for name in ${{ inputs.crates }}
         do
-          version=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name=="'$name'") | .version')
+          version=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name=="'$name'") | .version')
           cargo package \
             --no-verify \
             --package $name \
