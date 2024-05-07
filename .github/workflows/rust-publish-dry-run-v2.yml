@@ -30,16 +30,27 @@ jobs:
     env:
       CARGO_BUILD_TARGET: ${{ inputs.target }}
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+      RUST_BACKTRACE: 1
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - uses: stellar/actions/rust-cache@main
 
     - run: rustup update
     - run: rustup target add ${{ inputs.target }}
-    - if: inputs.target == 'aarch64-unknown-linux-gnu'
+
+    - name: Install add'l compilers (Linux arm64 only)
+      if: inputs.target == 'aarch64-unknown-linux-gnu'
       run: sudo apt-get update && sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
+    # macOS comes with an old version of `make` that causes issues when building
+    # some projects
+    - name: Update GNU Make (macOS only)
+      if: inputs.target == 'x86_64-apple-darwin' || inputs.target == 'aarch64-apple-darwin'
+      run: |
+        brew update && brew install make
+        echo "$(brew --prefix)/opt/make/libexec/gnubin/" >> $GITHUB_PATH
+        
     - uses: stellar/binaries@v21
       with:
         name: cargo-hack
