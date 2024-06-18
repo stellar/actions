@@ -19,7 +19,7 @@ on:
         required: false
         default: '--feature-powerset'
         type: string
-      additional_deb_packages:
+      additional-deb-packages:
         description: 'Space separated list of .deb packages that will be installed on ubuntu.'
         required: false
         default: ''
@@ -46,7 +46,11 @@ jobs:
 
     - name: Install add'l compilers (Linux arm64 only)
       if: inputs.target == 'aarch64-unknown-linux-gnu'
-      run: sudo apt-get update && sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu ${{ inputs.additional_deb_packages }}
+      run: sudo apt-get update && sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+    - name: Install additional dependencies (Linux)
+      if: (inputs.target == 'aarch64-unknown-linux-gnu' || inputs.target == 'x86_64-unknown-linux-gnu') && inputs.additional-deb-packages != ''
+      run: sudo apt-get -y install ${{ inputs.additional-deb-packages }}
 
     # macOS comes with an old version of `make` that causes issues when building
     # some projects
