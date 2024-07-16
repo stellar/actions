@@ -89,16 +89,26 @@ jobs:
     # If a list of crates weren't provided, prepare a list by asking
     # cargo-workspaces for the order it would publish the crates in, and filter
     # the list of returned crates by crates that are marked for publishing.
+    # '); cargo metadata --format-version 1 --no-deps | jq -r '"'"'.packages[] | select(.publish != []) | .name'"'"' | grep -w -q $name && echo $name'');
     - name: Prepare List of Crates Ordered by Publish-Order
-      if: inputs.crates == ''
-      run: echo "CRATES=\""${$(cargo workspaces exec --no-bail sh -c 'name=$(basename $(pwd)); cargo metadata --format-version 1 --no-deps | jq -r '"'"'.packages[] | select(.publish != []) | .name'"'"' | grep -w -q $name && echo $name')//$'\n'/ }\"" >> $GITHUB_ENV
+      run: echo "CRATES=\""${$()//$'\n'/ }\"" >> $GITHUB_ENV
+    - uses: actions/github-script@v7
+      id: crates
+      with:
+        script: |
+          const exec = require("@actions/exec");
+          let crates = await exec.exec("cargo workspaces exec --no-bail sh -c 'basename $(pwd)'");
+          return crates;
+        result-encoding: string
+    - name: List of Crates
+      run: echo "${{steps.crates.outputs.result}}"
 
     # Package the crates that will be published. Verification is disabled
     # because we aren't ready to verify yet. Add each crate that was packaged to
     # the vendor/ directory.
-    - name: Package Crates ${{ inputs.crates }}
+    - name: Package Crates ${{ steps.crates.outputs.result }}
       run: |
-        for name in ${{ inputs.crates }}
+        for name in ${{ steps.crates.outputs.result }}
         do
           version=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name=="'$name'") | .version')
           cargo package \
