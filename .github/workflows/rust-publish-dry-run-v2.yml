@@ -5,7 +5,7 @@ on:
     inputs:
       crates:
         description: 'Space separated list of crate names in the order to be published.'
-        required: true
+        required: false
         type: string
       runs-on:
         required: false
@@ -65,6 +65,16 @@ jobs:
         name: cargo-hack
         version: 0.5.28
 
+    - uses: stellar/binaries@v25
+      with:
+        name: cargo-workspaces
+        version: 0.2.35
+
+    # Create the vendor directory because it'll only be created in the next step
+    # if the crate has dependencies, but it's needed for the latter steps in all
+    # cases.
+    - run: mkdir -p vendor
+
     # Vendor all the dependencies into the vendor/ folder. Temporarily remove
     # [patch.crates-io] entries in the workspace Cargo.toml that reference git
     # repos. These will be removed when published.
@@ -75,6 +85,23 @@ jobs:
         cargo vendor --versioned-dirs
         rm Cargo.toml
         mv Cargo.toml.bak Cargo.toml
+
+    # If a list of crates weren't provided, prepare a list by asking
+    # cargo-workspaces for the order it would publish the crates in, and filter
+    # the list of returned crates by crates that are marked for publishing.
+    - name: Prepare List of Crates Ordered by Publish-Order
+      if: inputs.crates == ''
+      run: |
+        echo "CRATES=\"$( \
+          cargo workspaces exec --no-bail \
+            sh -c ' \
+              name=$(basename $(pwd)); \
+              cargo metadata --format-version 1 --no-deps \
+                | jq -r '"'"'.packages[] | select(.publish != []) | .name'"'"' \
+                | grep -w -q $name \
+              && echo $name \
+            ' \
+        )\"" >> $GITHUB_ENV
 
     # Package the crates that will be published. Verification is disabled
     # because we aren't ready to verify yet. Add each crate that was packaged to
