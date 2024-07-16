@@ -108,7 +108,7 @@ jobs:
             ],
             {
               listeners: {
-                stdout: (data: Buffer) => { crates += data.toString(); },
+                stdout: (data) => { crates += data.toString(); },
               },
             },
           );
