@@ -112,7 +112,7 @@ jobs:
           let metadata = JSON.parse(metadata_str);
 
           // Filter the crates to those that publish.
-          let crates_that_publish = crates.filter((c) => metadata.packages.find((p) => p.name == c).publish !== []);
+          let crates_that_publish = crates.filter((c) => metadata.packages.some((p) => p.name == c && p.publish !== []));
 
           return crates_that_publish.join(" ");
         result-encoding: string
