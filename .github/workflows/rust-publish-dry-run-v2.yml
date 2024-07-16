@@ -95,7 +95,6 @@ jobs:
       id: crates
       with:
         script: |
-          const exec = require("@actions/exec");
           let crates = await exec.exec("cargo workspaces exec --no-bail sh -c 'basename $(pwd)'");
           return crates;
         result-encoding: string
