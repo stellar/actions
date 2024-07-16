@@ -89,7 +89,6 @@ jobs:
     # If a list of crates weren't provided, prepare a list by asking
     # cargo-workspaces for the order it would publish the crates in, and filter
     # the list of returned crates by crates that are marked for publishing.
-    # '); cargo metadata --format-version 1 --no-deps | jq -r '"'"'.packages[] | select(.publish != []) | .name'"'"' | grep -w -q $name && echo $name'');
     - name: Prepare List of Crates Ordered by Publish-Order
       uses: actions/github-script@v7
       id: crates
