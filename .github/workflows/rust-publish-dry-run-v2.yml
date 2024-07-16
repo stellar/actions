@@ -103,18 +103,18 @@ jobs:
           );
           let crates = crates_str.split("\n");
 
-          // Get cargo metadata.
-          let metadata_str = "";
+          // Get list of crates that need publishing, but out of order.
+          let crates_need_publish_str = "";
           await exec.exec(
-            "cargo", [ "metadata", "--format-version=1", "--no-deps" ],
-            { listeners: { stdout: (buf) => { metadata_str += buf.toString(); } } },
+            "cargo", [ "workspaces", "list" ],
+            { listeners: { stdout: (buf) => { crates_need_publish_str += buf.toString(); } } },
           );
-          let metadata = JSON.parse(metadata_str);
+          let crates_need_publish = crates_need_publish_str.split("\n");
 
           // Filter the crates to those that publish.
-          let crates_that_publish = crates.filter((c) => metadata.packages.some((p) => p.name == c && p.publish !== []));
+          let crates_to_publish = crates.filter((c) => crates_to_publish.includes(c));
 
-          return crates_that_publish.join(" ");
+          return crates_to_publish.join(" ");
         result-encoding: string
     - name: List of Crates
       run: echo "${{steps.crates.outputs.result}}"
