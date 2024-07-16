@@ -92,7 +92,7 @@ jobs:
     - name: Prepare List of Crates Ordered by Publish-Order
       if: inputs.crates == ''
       run: |
-        echo "CRATES=\"$( \
+        echo "CRATES=\""${$( \
           cargo workspaces exec --no-bail \
             sh -c ' \
               name=$(basename $(pwd)); \
@@ -101,7 +101,7 @@ jobs:
                 | grep -w -q $name \
               && echo $name \
             ' \
-        )\"" >> $GITHUB_ENV
+        )//$'\n'/ }\"" >> $GITHUB_ENV
 
     # Package the crates that will be published. Verification is disabled
     # because we aren't ready to verify yet. Add each crate that was packaged to
