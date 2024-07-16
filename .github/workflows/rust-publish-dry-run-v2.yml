@@ -95,24 +95,14 @@ jobs:
       id: crates
       with:
         script: |
-          let crates = "";
+          let crates_list = "";
           await exec.exec(
             "cargo",
-            [
-              "workspaces",
-              "exec",
-              "--no-bail",
-              "sh",
-              "-c",
-              "basename $(pwd)",
-            ],
-            {
-              listeners: {
-                stdout: (data) => { crates += data.toString(); },
-              },
-            },
+            [ "workspaces", "exec", "--no-bail", "sh", "-c", "basename $(pwd)" ],
+            { listeners: { stdout: (buf) => { crates_list += buf.toString(); } } },
           );
-          return crates;
+          let crates = crates_list.split("\n");
+          return crates.join(" ");
         result-encoding: string
     - name: List of Crates
       run: echo "${{steps.crates.outputs.result}}"
