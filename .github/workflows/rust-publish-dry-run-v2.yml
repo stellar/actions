@@ -95,7 +95,23 @@ jobs:
       id: crates
       with:
         script: |
-          let crates = await exec.exec("cargo", ["workspaces", "exec", "--no-bail", "sh", "-c", "basename $(pwd)"]);
+          let crates = "";
+          await exec.exec(
+            "cargo",
+            [
+              "workspaces",
+              "exec",
+              "--no-bail",
+              "sh",
+              "-c",
+              "basename $(pwd)",
+            ],
+            {
+              listeners: {
+                stdout: (data: Buffer) => { crates += data.toString(); },
+              },
+            },
+          );
           return crates;
         result-encoding: string
     - name: List of Crates
