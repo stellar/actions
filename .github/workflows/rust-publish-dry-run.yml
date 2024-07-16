@@ -1,9 +1,6 @@
-# WARNING: This publish dry run process will not work on repositories that have
-# a crate containing bin targets that are dependent on other crates in the
-# repository. Please use `rust-publish-dry-run-v2` for any repository containing
-# binaries.
+# Deprecated. Use publish-dry-run-v2.yml.
 #
-# For more details, see https://github.com/rust-lang/cargo/issues/11181.
+# This workflow calls through to the v2 workflow.
 
 name: Publish Dry Run
 
@@ -26,67 +23,8 @@ on:
 jobs:
 
   publish-dry-run:
-    runs-on: ${{ inputs.runs-on }}
-    defaults:
-      run:
-        shell: bash
-    env:
-      CARGO_BUILD_TARGET: ${{ inputs.target }}
-      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-    steps:
-    - uses: actions/checkout@v3
-
-    - uses: stellar/actions/rust-cache@main
-
-    - run: rustup update
-    - run: rustup target add ${{ inputs.target }}
-    - if: inputs.target == 'aarch64-unknown-linux-gnu'
-      run: sudo apt-get update && sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-
-    - uses: stellar/binaries@v21
-      with:
-        name: cargo-hack
-        version: 0.5.28
-
-    # Create the vendor directory because it'll only be created in the next step
-    # if the crate has dependencies, but it's needed for the latter steps in all
-    # cases.
-    - run: mkdir -p vendor
-
-    # Vendor all the dependencies into the vendor/ folder. Temporarily remove
-    # [patch.crates-io] entries in the workspace Cargo.toml that reference git
-    # repos. These will be removed when published.
-    - run: |
-        cp Cargo.toml Cargo.toml.bak
-        sed -r '/(git|rev) ?=/d' Cargo.toml.bak > Cargo.toml
-        cargo vendor --versioned-dirs
-        rm Cargo.toml
-        mv Cargo.toml.bak Cargo.toml
-
-    # Package the crates that will be published. Verification is disabled because
-    # we aren't ready to verify yet.
-    - run: cargo-hack hack --ignore-private package --no-verify ${{ inputs.cargo-package-options }}
-
-    # Add each crate that was packaged to the vendor/ directory.
-    - run: |
-        for crate in target/package/*.crate
-        do
-          name=$(basename "$crate" .crate)
-          tar xvfz "$crate" -C vendor/
-          # Crates in the vendor directory require a checksum file, but it doesn't
-          # matter if it is empty.
-          echo '{"files":{}}' > vendor/$name/.cargo-checksum.json
-        done
-
-    # Rerun the package command but with verification enabled this time. Tell
-    # cargo to use the local vendor/ directory as the source for all packages. Run
-    # the package command on the full feature powerset so that all features of
-    # each crate are verified to compile.
-    - run: >
-        cargo-hack hack
-        ${{ inputs.cargo-hack-feature-options }}
-        --ignore-private
-        --config "source.crates-io.replace-with = 'vendored-sources'"
-        --config "source.vendored-sources.directory = 'vendor'"
-        package
-        --target ${{ inputs.target }}
+    uses: ./.github/workflows/rust-publish-dry-run-v2.yml
+    with:
+      runs-on: ${{ inputs.runs-on }}
+      target: ${{ inputs.target }}
+      cargo-hack-feature-options: ${{ inputs.cargo-hack-feature-options }}
