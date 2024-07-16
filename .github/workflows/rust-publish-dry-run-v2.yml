@@ -91,17 +91,7 @@ jobs:
     # the list of returned crates by crates that are marked for publishing.
     - name: Prepare List of Crates Ordered by Publish-Order
       if: inputs.crates == ''
-      run: >
-        echo "CRATES=\""${$(
-          cargo workspaces exec --no-bail
-            sh -c '
-              name=$(basename $(pwd));
-              cargo metadata --format-version 1 --no-deps
-                | jq -r '"'"'.packages[] | select(.publish != []) | .name'"'"'
-                | grep -w -q $name
-              && echo $name
-            '
-        )//$'\n'/ }\"" >> $GITHUB_ENV
+      run: echo "CRATES=\""${$(cargo workspaces exec --no-bail sh -c 'name=$(basename $(pwd)); cargo metadata --format-version 1 --no-deps | jq -r '"'"'.packages[] | select(.publish != []) | .name'"'"' | grep -w -q $name && echo $name')//$'\n'/ }\"" >> $GITHUB_ENV
 
     # Package the crates that will be published. Verification is disabled
     # because we aren't ready to verify yet. Add each crate that was packaged to
