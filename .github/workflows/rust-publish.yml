@@ -5,12 +5,20 @@ on:
     secrets:
       CARGO_REGISTRY_TOKEN:
         required: true
+    additional-deb-packages:
+      description: 'Space separated list of .deb packages that will be installed on ubuntu.'
+      required: false
+      default: ''
+      type: string
 
 jobs:
 
   publish:
     runs-on: ubuntu-latest
     steps:
+    - name: Install additional dependencies (Linux)
+      if: inputs.additional-deb-packages != ''
+      run: sudo apt-get update && sudo apt-get -y install ${{ inputs.additional-deb-packages }}
     - uses: actions/checkout@v3
     - uses: stellar/actions/rust-cache@main
     - run: rustup update
