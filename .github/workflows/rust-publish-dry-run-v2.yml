@@ -98,7 +98,7 @@ jobs:
             "cargo-workspaces", [ "workspaces", "list" ],
             { listeners: { stdout: (buf) => { crates += buf.toString(); } } },
           );
-          return crates;
+          return crates.split("\n").join(" ");
         result-encoding: string
     - name: List of Crates
       run: echo "${{steps.crates.outputs.result}}"
