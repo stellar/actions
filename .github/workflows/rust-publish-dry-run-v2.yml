@@ -95,7 +95,7 @@ jobs:
         script: |
           let crates = "";
           await exec.exec(
-            "bash", "-c", [ "cargo-workspaces", "workspaces", "list" ],
+            "bash", [ "-c", "cargo-workspaces", "workspaces", "list" ],
             { listeners: { stdout: (buf) => { crates += buf.toString(); } } },
           );
           return crates.split("\n").join(" ");
