@@ -59,16 +59,16 @@ jobs:
       run: |
         brew update && brew install make
         echo "$(brew --prefix)/opt/make/libexec/gnubin/" >> $GITHUB_PATH
-        
+
     - uses: stellar/binaries@v21
       with:
         name: cargo-hack
         version: 0.5.28
 
-    - uses: stellar/binaries@v25
+    - uses: stellar/binaries@v26
       with:
         name: cargo-workspaces
-        version: 0.2.35
+        version: 0.3.4
 
     # Create the vendor directory because it'll only be created in the next step
     # if the crate has dependencies, but it's needed for the latter steps in all
@@ -87,33 +87,18 @@ jobs:
         mv Cargo.toml.bak Cargo.toml
 
     # If a list of crates weren't provided, prepare a list by asking
-    # cargo-workspaces for the order it would publish the crates in, and filter
-    # the list of returned crates by crates that are marked for publishing.
+    # cargo-workspaces for the order it would publish the crates in.
     - name: Prepare List of Crates Ordered by Publish-Order
       uses: actions/github-script@v7
       id: crates
       with:
         script: |
-          // Get list of crates in publish order.
-          let crates_str = "";
+          let crates = "";
           await exec.exec(
-            "cargo", [ "workspaces", "exec", "--no-bail", "sh", "-c", "basename $(pwd)" ],
-            { listeners: { stdout: (buf) => { crates_str += buf.toString(); } } },
+            "bash", [ "-c", "cargo-workspaces workspaces list" ],
+            { listeners: { stdout: (buf) => { crates += buf.toString(); } } },
           );
-          let crates = crates_str.split("\n");
-
-          // Get list of crates that need publishing, but out of order.
-          let crates_need_publish_str = "";
-          await exec.exec(
-            "cargo", [ "workspaces", "list" ],
-            { listeners: { stdout: (buf) => { crates_need_publish_str += buf.toString(); } } },
-          );
-          let crates_need_publish = crates_need_publish_str.split("\n");
-
-          // Filter the crates to those that publish.
-          let crates_to_publish = crates.filter((c) => crates_need_publish.includes(c));
-
-          return crates_to_publish.join(" ");
+          return crates.split("\n").join(" ");
         result-encoding: string
     - name: List of Crates
       run: echo "${{steps.crates.outputs.result}}"
