@@ -30,8 +30,8 @@ jobs:
         cargo set-version ${{ inputs.version }}
     - name: Create Commit
       run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git config user.name 'github-actions[bot]'
+        git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
         git checkout -b 'release/v${{ inputs.version }}'
         git add .
         git commit -m 'Bump version to ${{ inputs.version }}'
