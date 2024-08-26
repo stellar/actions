@@ -5,7 +5,7 @@ on:
     inputs:
       crates:
         description: 'Space separated list of crate names in the order to be published.'
-        required: true
+        required: false
         type: string
       runs-on:
         required: false
@@ -59,11 +59,21 @@ jobs:
       run: |
         brew update && brew install make
         echo "$(brew --prefix)/opt/make/libexec/gnubin/" >> $GITHUB_PATH
-        
+
     - uses: stellar/binaries@v21
       with:
         name: cargo-hack
         version: 0.5.28
+
+    - uses: stellar/binaries@v26
+      with:
+        name: cargo-workspaces
+        version: 0.3.4
+
+    # Create the vendor directory because it'll only be created in the next step
+    # if the crate has dependencies, but it's needed for the latter steps in all
+    # cases.
+    - run: mkdir -p vendor
 
     # Vendor all the dependencies into the vendor/ folder. Temporarily remove
     # [patch.crates-io] entries in the workspace Cargo.toml that reference git
@@ -76,12 +86,29 @@ jobs:
         rm Cargo.toml
         mv Cargo.toml.bak Cargo.toml
 
+    # If a list of crates weren't provided, prepare a list by asking
+    # cargo-workspaces for the order it would publish the crates in.
+    - name: Prepare List of Crates Ordered by Publish-Order
+      uses: actions/github-script@v7
+      id: crates
+      with:
+        script: |
+          let crates = "";
+          await exec.exec(
+            "bash", [ "-c", "cargo-workspaces workspaces list" ],
+            { listeners: { stdout: (buf) => { crates += buf.toString(); } } },
+          );
+          return crates.split("\n").join(" ");
+        result-encoding: string
+    - name: List of Crates
+      run: echo "${{steps.crates.outputs.result}}"
+
     # Package the crates that will be published. Verification is disabled
     # because we aren't ready to verify yet. Add each crate that was packaged to
     # the vendor/ directory.
-    - name: Package Crates ${{ inputs.crates }}
+    - name: Package Crates ${{ steps.crates.outputs.result }}
       run: |
-        for name in ${{ inputs.crates }}
+        for name in ${{ steps.crates.outputs.result }}
         do
           version=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name=="'$name'") | .version')
           cargo package \
