@@ -1,0 +1,16 @@
+name: Linting
+
+on:
+  push:
+  pull_request:
+
+jobs:
+
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          wget https://github.com/rhysd/actionlint/releases/download/v1.7.1/actionlint_1.7.1_linux_amd64.tar.gz
+          tar xvf actionlint_1.7.1_linux_amd64.tar.gz
+          chmod +x actionlint
+          ./actionlint
