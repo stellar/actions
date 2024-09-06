@@ -10,8 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: stellar/binaries@v28
+      - uses: stellar/binaries@v30
         with:
           name: actionlint
-          version: v1.7.1
+          version: 1.7.1
       - run: actionlint
