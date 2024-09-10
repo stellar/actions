@@ -37,7 +37,7 @@ jobs:
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
       RUST_BACKTRACE: 1
     steps:
-    - uses: ./.github/workflows/disk-cleanup.yml
+    - uses: stellar/actions/disk-cleanup@main
 
     - uses: actions/checkout@v4
 
