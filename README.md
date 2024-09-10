@@ -69,5 +69,6 @@ workflows.
 [rust-publish-dry-run-v2]: ./.github/workflows/rust-publish-dry-run-v2.yml
 [rust-publish]: ./.github/workflows/rust-publish.yml
 [update-completed-sprint-on-issue-closed]: ./.github/workflows/update-completed-sprint-on-issue-closed.yml
+[disk-cleanup]: ./.github/workflows/disk-cleanup.yml
 
 [README-rust-release.md]: README-rust-release.md

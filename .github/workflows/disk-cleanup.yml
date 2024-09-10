@@ -1,0 +1,16 @@
+name: Disk Cleanup
+
+on:
+  workflow_call:
+    inputs: {}
+
+jobs:
+
+  disk-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Remove unnecessary files
+      if: inputs.target != 'x86_64-pc-windows-msvc' && inputs.target != 'x86_64-pc-windows-msvc'
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/hostedtoolcache
