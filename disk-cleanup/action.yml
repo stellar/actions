@@ -1,12 +1,9 @@
 name: Disk Cleanup
-inputs:
-  target:
-    required: true
 runs:
   using: composite
   steps:
   - name: Remove unnecessary files
-    if: inputs.target != 'x86_64-pc-windows-msvc' && inputs.target != 'x86_64-pc-windows-msvc'
+    if: runner.os == "Linux" || runner.os == "macOS"
     run: |
-      sudo rm -rf /usr/share/dotnet
-      sudo rm -rf /opt/hostedtoolcache
+      rm -rf /usr/share/dotnet
+      rm -rf /opt/hostedtoolcache
