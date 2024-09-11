@@ -37,6 +37,8 @@ jobs:
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
       RUST_BACKTRACE: 1
     steps:
+    - uses: stellar/actions/disk-cleanup@main
+
     - uses: actions/checkout@v4
 
     - uses: stellar/actions/rust-cache@main
