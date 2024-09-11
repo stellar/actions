@@ -4,7 +4,7 @@ runs:
   steps:
   - name: Remove unnecessary files
     shell: bash
-    if: runner.os == "Linux" || runner.os == "macOS"
+    if: runner.os == 'Linux' || runner.os == 'macOS'
     run: |
       rm -rf ~/hostedtoolcache
       rm -rf /opt/hostedtoolcache
