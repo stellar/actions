@@ -60,7 +60,7 @@ jobs:
       if: inputs.target == 'x86_64-apple-darwin' || inputs.target == 'aarch64-apple-darwin'
       run: |
         brew update && brew install make
-        echo "$(brew --prefix)/opt/make/libexec/gnubin/" >> $GITHUB_PATH
+        echo "$(brew --prefix)/opt/make/libexec/gnubin/" >> "$GITHUB_PATH"
 
     - uses: stellar/binaries@v21
       with:
@@ -110,19 +110,20 @@ jobs:
     # the vendor/ directory.
     - name: Package Crates ${{ steps.crates.outputs.result }}
       run: |
+        # shellcheck disable=SC2043
         for name in ${{ steps.crates.outputs.result }}
         do
           version=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name=="'$name'") | .version')
           cargo package \
             --no-verify \
-            --package $name \
+            --package "$name" \
             --config "source.crates-io.replace-with = 'vendored-sources'" \
             --config "source.vendored-sources.directory = 'vendor'"
           path="target/package/${name}-${version}.crate"
           tar xvfz "$path" -C vendor/
           # Crates in the vendor directory require a checksum file, but it doesn't
           # matter if it is empty.
-          echo '{"files":{}}' > vendor/$name-$version/.cargo-checksum.json
+          echo '{"files":{}}' > "vendor/$name-$version/.cargo-checksum.json"
         done
 
     # Rerun the package command but with verification enabled this time. Tell
