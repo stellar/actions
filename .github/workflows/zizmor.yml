@@ -1,0 +1,32 @@
+name: Security Analysis with zizmor
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  zizmor:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - run: cargo install --locked zizmor@0.8.0
+      # TODO: Switch to install via binary after https://github.com/stellar/binaries/pull/35.
+      # - uses: stellar/binaries@vN
+      #   with:
+      #       name: zizmor
+      #       version: 0.8.0
+
+      - run: zizmor --format sarif . > results.sarif
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+          category: zizmor
