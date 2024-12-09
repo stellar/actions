@@ -25,16 +25,22 @@ runs:
     env:
       SCCACHE_VERSION: v0.4.1
       SCCACHE_FILE: >-
-        ${{ (runner.os == 'Linux' && 'sccache-v0.4.1-x86_64-unknown-linux-musl.tar.gz')
-        || (runner.os == 'macOS' && 'sccache-v0.4.1-x86_64-apple-darwin.tar.gz')
+        ${{ (runner.os == 'Linux' && runner.arch == 'X64' && 'sccache-v0.4.1-x86_64-unknown-linux-musl.tar.gz')
+        || (runner.os == 'Linux' && runner.arch == 'ARM64' && 'sccache-v0.4.1-aarch64-unknown-linux-musl.tar.gz')
+        || (runner.os == 'macOS' && runner.arch == 'X64' && 'sccache-v0.4.1-x86_64-apple-darwin.tar.gz')
+        || (runner.os == 'macOS' && runner.arch == 'ARM64' && 'sccache-v0.4.1-aarch64-apple-darwin.tar.gz')
         || (runner.os == 'Windows' && 'sccache-v0.4.1-x86_64-pc-windows-msvc.tar.gz') }}
       SCCACHE_FILE_SHA256: >-
-        ${{ (runner.os == 'Linux' && 'f077d92ca86d71bc55aebeeb6e8dc557fef481446ccc82504aeedf1fe6e1f657')
-        || (runner.os == 'macOS' && 'a291f1d90c6b25726866f018ec6071fa4d20ca443ad91fe5dfb9740eb4ebc45a')
+        ${{ (runner.os == 'Linux' && runner.arch == 'X64' && 'f077d92ca86d71bc55aebeeb6e8dc557fef481446ccc82504aeedf1fe6e1f657')
+        || (runner.os == 'Linux' && runner.arch == 'ARM64' && '263a43ba0cb211e5c1c10fe437c636d601bed7a47be0ca07beeba7973ba61461')
+        || (runner.os == 'macOS' && runner.arch == 'X64' && 'a291f1d90c6b25726866f018ec6071fa4d20ca443ad91fe5dfb9740eb4ebc45a')
+        || (runner.os == 'macOS' && runner.arch == 'ARM64' && '593c6c78796db712c29fe766caef4b8bd2e3d4a68ed5b2b8eca39e03ce2432df')
         || (runner.os == 'Windows' && '7508cfa20b045a891eba2f7298afb8faec886d40d10b844830160b096fe99874') }}
       SCCACHE_DIR: >-
-        ${{ (runner.os == 'Linux' && 'sccache-v0.4.1-x86_64-unknown-linux-musl')
-        || (runner.os == 'macOS' && 'sccache-v0.4.1-x86_64-apple-darwin')
+        ${{ (runner.os == 'Linux' && runner.arch == 'X64' && 'sccache-v0.4.1-x86_64-unknown-linux-musl')
+        || (runner.os == 'Linux' && runner.arch == 'ARM64' && 'sccache-v0.4.1-aarch64-unknown-linux-musl')
+        || (runner.os == 'macOS' && runner.arch == 'X64' && 'sccache-v0.4.1-x86_64-apple-darwin')
+        || (runner.os == 'macOS' && runner.arch == 'ARM64' && 'sccache-v0.4.1-aarch64-apple-darwin')
         || (runner.os == 'Windows' && 'sccache-v0.4.1-x86_64-pc-windows-msvc') }}
       SCCACHE_BIN_FILE: sccache${{ runner.os == 'Windows' && '.exe' || '' }}
       SHASUM: ${{ runner.os == 'macOS' && 'shasum' || 'sha256sum' }}
