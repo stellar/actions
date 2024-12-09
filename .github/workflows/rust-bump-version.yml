@@ -16,8 +16,13 @@ jobs:
 
   bump-version:
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+      BASE: ${{ inputs.base }}
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: true
     - uses: stellar/actions/rust-cache@main
     - run: rustup update
     - uses: stellar/binaries@v21
@@ -27,29 +32,31 @@ jobs:
     - id: set-version
       continue-on-error: true
       run: |
-        cargo set-version ${{ inputs.version }}
+        cargo set-version ${VERSION}
     - name: Create Commit
       run: |
         git config user.name 'github-actions[bot]'
         git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-        git checkout -b 'release/v${{ inputs.version }}'
+        git checkout -b "release/v${VERSION}"
         git add .
-        git commit -m 'Bump version to ${{ inputs.version }}'
-        git push origin 'release/v${{ inputs.version }}'
+        git commit -m "Bump version to ${VERSION}"
+        git push origin "release/v${VERSION}"
     - name: Create Pull Request
       uses: actions/github-script@v6
       id: create-pull-request
       with:
         script: |
           const response = await github.rest.pulls.create({
-            title: 'Bump version to ${{ inputs.version }}',
+            title: `Bump version to ${process.env.VERSION}`,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            head: 'release/v${{ inputs.version }}',
-            base: '${{ inputs.base }}',
-            body: '### What\nBump version to ${{ inputs.version }}, creating release branch.\n\n### Why\nTriggered by @${{ github.actor }} in ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}.\n\n### What is next\n\nSee the release instructions for a full rundown on the release process:\nhttps://github.com/stellar/actions/blob/main/README-rust-release.md\n\nCommit any changes to the `release/v${{ inputs.version }}` branch that are needed in this release.\n\nIf this is a regular release releasing from `main`, merge this PR when ready, and after merging, create a release for this version by going to this link: https://github.com/${{ github.repository }}/releases/new?tag=v${{ inputs.version }}&title=${{ inputs.version }}\n\nIf this is a backport or patch release of a past version, see the release instructions. When ready to release this branch create a release by going to this link: \nhttps://github.com/${{ github.repository }}/releases/new?tag=v${{ inputs.version }}&title=${{ inputs.version }}&target=release/v${{ inputs.version }}'
+            head: `release/v${process.env.VERSION}`,
+            base: process.env.BASE,
+            body: `### What\nBump version to ${process.env.VERSION}, creating release branch.\n\n### Why\nTriggered by @${context.ACTOR} in ${process.env.ACTION_URL}.\n\n### What is next\n\nSee the release instructions for a full rundown on the release process:\nhttps://github.com/stellar/actions/blob/main/README-rust-release.md\n\nCommit any changes to the \`release/v${process.env.VERSION}\` branch that are needed in this release.\n\nIf this is a regular release releasing from \`main\`, merge this PR when ready, and after merging, create a release for this version by going to this link: https://github.com/${process.env.GITHUB_REPOSITORY}/releases/new?tag=v${process.env.VERSION}&title=${process.env.VERSION}\n\nIf this is a backport or patch release of a past version, see the release instructions. When ready to release this branch create a release by going to this link: \nhttps://github.com/${process.env.GITHUB_REPOSITORY}/releases/new?tag=v${process.env.VERSION}&title=${process.env.VERSION}&target=release/v${process.env.VERSION}`
           });
           return response.data.number;
+      env:
+        ACTION_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     - name: Comment on the Pull Request about Failure
       if: steps.set-version.outcome == 'failure'
       uses: actions/github-script@v6
@@ -58,6 +65,8 @@ jobs:
           github.rest.issues.createComment({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            issue_number: ${{steps.create-pull-request.outputs.result}},
+            issue_number: process.env.ISSUE_NUMBER,
             body: '🚨 There was an error setting versions when bumping version. Check out the GitHub Action that triggered this Pull Request for more information. Inspect the diff before merging.',
           })
+      env:
+        ISSUE_NUMBER: ${{steps.create-pull-request.outputs.result}}

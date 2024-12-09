@@ -40,11 +40,13 @@ jobs:
     - uses: stellar/actions/disk-cleanup@main
 
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
 
     - uses: stellar/actions/rust-cache@main
 
     - run: rustup update
-    - run: rustup target add ${{ inputs.target }}
+    - run: rustup target add ${CARGO_BUILD_TARGET}
 
     - name: Install add'l compilers (Linux arm64 only)
       if: inputs.target == 'aarch64-unknown-linux-gnu'
@@ -52,7 +54,9 @@ jobs:
 
     - name: Install additional dependencies (Linux)
       if: (inputs.target == 'aarch64-unknown-linux-gnu' || inputs.target == 'x86_64-unknown-linux-gnu') && inputs.additional-deb-packages != ''
-      run: sudo apt-get -y install ${{ inputs.additional-deb-packages }}
+      run: sudo apt-get -y install ${ADDITIONAL_DEB_PACKAGES}
+      env:
+        ADDITIONAL_DEB_PACKAGES: ${{ inputs.additional-deb-packages }}
 
     # macOS comes with an old version of `make` that causes issues when building
     # some projects
@@ -103,14 +107,16 @@ jobs:
           return crates.split("\n").join(" ");
         result-encoding: string
     - name: List of Crates
-      run: echo "${{steps.crates.outputs.result}}"
+      run: echo "${CRATES}"
+      env:
+        CRATES: ${{steps.crates.outputs.result}}
 
     # Package the crates that will be published. Verification is disabled
     # because we aren't ready to verify yet. Add each crate that was packaged to
     # the vendor/ directory.
     - name: Package Crates ${{ steps.crates.outputs.result }}
       run: |
-        for name in ${{ steps.crates.outputs.result }}
+        for name in ${CRATES}
         do
           version=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name=="'$name'") | .version')
           cargo package \
@@ -124,6 +130,8 @@ jobs:
           # matter if it is empty.
           echo '{"files":{}}' > vendor/$name-$version/.cargo-checksum.json
         done
+      env:
+        CRATES: ${{steps.crates.outputs.result}}
 
     # Rerun the package command but with verification enabled this time. Tell
     # cargo to use the local vendor/ directory as the source for all packages. Run
@@ -132,9 +140,10 @@ jobs:
     - name: Verify Crates with ${{ inputs.cargo-hack-feature-options }}
       run: >
         cargo-hack hack
-        ${{ inputs.cargo-hack-feature-options }}
+        ${CARGO_HACK_FEATURE_OPTIONS}
         --ignore-private
         --config "source.crates-io.replace-with = 'vendored-sources'"
         --config "source.vendored-sources.directory = 'vendor'"
         package
-        --target ${{ inputs.target }}
+      env:
+        CARGO_HACK_FEATURE_OPTIONS: ${{ inputs.cargo-hack-feature-options }}
