@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.base }}
     - uses: stellar/actions/rust-cache@main
     - run: rustup update
     - uses: stellar/binaries@v21
