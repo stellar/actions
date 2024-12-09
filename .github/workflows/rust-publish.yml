@@ -19,8 +19,12 @@ jobs:
     steps:
     - name: Install additional dependencies (Linux)
       if: inputs.additional-deb-packages != ''
-      run: sudo apt-get update && sudo apt-get -y install ${{ inputs.additional-deb-packages }}
+      run: sudo apt-get update && sudo apt-get -y install ${ADDITIONAL_DEB_PACKAGES}
+      env:
+        ADDITIONAL_DEB_PACKAGES: ${{ inputs.additional-deb-packages }}
     - uses: actions/checkout@v3
+      with:
+        persist-credentials: false
     - uses: stellar/actions/rust-cache@main
     - run: rustup update
     - uses: stellar/binaries@v21
