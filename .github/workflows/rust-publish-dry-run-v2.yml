@@ -36,7 +36,6 @@ jobs:
       CARGO_BUILD_TARGET: ${{ inputs.target }}
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
       RUST_BACKTRACE: 1
-      SKIP_LICENSE_FETCH: true
     steps:
     - uses: stellar/actions/disk-cleanup@main
 
@@ -127,6 +126,8 @@ jobs:
           echo '{"files":{}}' > "vendor/$name-$version/.cargo-checksum.json"
         done
 
+    - name: Move vendored folder
+      run: mv vendor /tmp
     # Rerun the package command but with verification enabled this time. Tell
     # cargo to use the local vendor/ directory as the source for all packages. Run
     # the package command on the full feature powerset so that all features of
@@ -137,6 +138,6 @@ jobs:
         ${{ inputs.cargo-hack-feature-options }}
         --ignore-private
         --config "source.crates-io.replace-with = 'vendored-sources'"
-        --config "source.vendored-sources.directory = 'vendor'"
+        --config "source.vendored-sources.directory = '/tmp/vendor'"
         package
         --target ${{ inputs.target }}
