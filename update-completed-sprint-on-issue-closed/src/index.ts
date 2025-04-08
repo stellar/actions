@@ -15,6 +15,7 @@ import * as github from '@actions/github';
       ? context.payload.issue.html_url
       : context.payload.pull_request.html_url;
     console.debug(`url: ${url}`);
+    
     const { resource } = await octokit.graphql<Record<string, any>>(`
       query {
         resource(url: "${url}") {
@@ -28,15 +29,19 @@ import * as github from '@actions/github';
                 }
               }
             }
-            projectsV2(query: "${project_name}", first: 1) {
+            projectsV2(query: "${project_name}", first: 10) {
               nodes {
-                id
-                field(name: "${field_name}") {
-                  ... on ProjectV2SingleSelectField {
-                    id
-                    options {
+                id,
+                title
+                fields(first: 50) {
+                  nodes {
+                    ... on ProjectV2SingleSelectField {
                       id
                       name
+                      options {
+                        id
+                        name
+                      }
                     }
                   }
                 }
@@ -53,37 +58,37 @@ import * as github from '@actions/github';
     }
 
     const projects = resource.projectsV2.nodes;
-    if (projects.length === 0) {
-      console.log(`Item ${url} is not a member of the project: ${project_name}`);
-      return
-    }
-    if (projects.length > 1) {
-      console.log(`Item ${url} is a member of multiple projects named: ${project_name}`);
-      return
-    }
+    const project = projects.find((proj: any) => proj.title === project_name);
 
-    const project = projects[0];
-    const projectItems = resource.projectItems.nodes?.filter((item: any) =>
-      item.project.id === project.id
-    );
-
-    if (projectItems.length === 0) {
-      console.log(`Item ${url} is not a member of the project: ${project_name}`);
-      return
-    }
-    if (projectItems.length > 1) {
-      console.log(`Item ${url} is a member of multiple projects named: ${project_name}`);
-      return
-    }
-
-    const projectItem = projectItems[0];
-
-    if (!project.field?.id) {
-      console.log(`${field_name} field not found on this item`);
+    if (!project) {
+      console.log(`Project ${project_name} not found`);
       return;
     }
 
-    const sprints = project.field.options.filter((a: {name: string}) =>
+    const fields = project.fields.nodes;
+
+    const targetField = fields.find((field: { name: string }) => field.name === field_name);
+    if (!targetField) {
+      console.log(`${field_name} field not found on this project`);
+      return;
+    }
+
+    const issuesOrPRs = resource.projectItems.nodes?.filter((item: any) =>
+      item.project.id === project.id
+    );
+
+    if (issuesOrPRs.length === 0) {
+      console.log(`Item ${url} is not a member of the project: ${project_name}`);
+      return;
+    }
+    if (issuesOrPRs.length > 1) {
+      console.log(`Item ${url} is a member of multiple projects named: ${project_name}`);
+      return;
+    }
+
+    const issueOrPR = issuesOrPRs[0];
+
+    const sprints = targetField.options.filter((a: {name: string}) =>
       a.name.match(/sprint\s+(\d+)/i)
     ).sort((a: {name: string}, b: {name: string}) => {
       let amatch = Number(a.name.match(/sprint\s+(\d+)/i)[1]);
@@ -92,11 +97,12 @@ import * as github from '@actions/github';
       if (amatch > bmatch) return 1;
       return 0;
     }).reverse();
+
     if (sprints.length === 0) throw new Error("No last sprints found");
 
-    const item_id = projectItem.id;
+    const item_id = issueOrPR.id;
     const project_id = project.id;
-    const field_id = project.field.id;
+    const field_id = targetField.id;
     const sprint_id = sprints[0].id;
 
     await octokit.graphql(`
@@ -113,7 +119,8 @@ import * as github from '@actions/github';
         }
       }
     `);
+
   } catch (error) {
-		core.setFailed(error.message);
-	}
+    core.setFailed(error.message);
+  }
 })();
