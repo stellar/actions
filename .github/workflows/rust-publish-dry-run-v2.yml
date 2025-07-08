@@ -19,6 +19,10 @@ on:
         required: false
         default: '--feature-powerset'
         type: string
+      cargo-hack-package-options:
+        required: false
+        default: ""
+        type: string
       additional-deb-packages:
         description: 'Space separated list of .deb packages that will be installed on ubuntu.'
         required: false
@@ -139,3 +143,4 @@ jobs:
         --config "source.vendored-sources.directory = 'vendor'"
         package
         --target ${{ inputs.target }}
+        ${{ inputs.cargo-hack-package-options }}
