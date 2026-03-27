@@ -1,6 +1,6 @@
 # ECR Login via OIDC — Composite Action
 
-Reusable GitHub Actions composite action that handles AWS OIDC authentication and ECR login (private and public). Role ARNs are pre-configured — callers can optionally override the AWS region and enable public ECR login.
+Reusable GitHub Actions composite action that handles AWS OIDC authentication and ECR login (private and public). Callers must provide the OIDC and ECR role ARNs as inputs, and can optionally override the AWS region and enable public ECR login.
 
 ## Usage
 
@@ -16,8 +16,9 @@ steps:
   - name: ECR Login via OIDC
     id: ecr-login
     uses: stellar/actions/sdf-ecr-login@main
-    # uses: stellar/actions/sdf-ecr-login@main  # cross-repo ref
     with:
+      aws-oidc-role: ${{ secrets.AWS_GITHUB_OIDC_ROLE }}       # required
+      aws-ecr-login-role: ${{ secrets.AWS_ECR_LOGIN_ROLE }}     # required
       aws-region: 'us-east-1'        # optional, defaults to us-east-1
       login-public-ecr: 'true'       # optional, defaults to false
 
@@ -56,6 +57,8 @@ steps:
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
+| `aws-oidc-role` | **yes** | — | ARN of the IAM role to assume via OIDC |
+| `aws-ecr-login-role` | **yes** | — | ARN of the IAM role to assume for ECR push (role chaining) |
 | `aws-region` | no | `us-east-1` | AWS region for ECR |
 | `login-public-ecr` | no | `false` | Set to `true` to also log into ECR Public |
 
