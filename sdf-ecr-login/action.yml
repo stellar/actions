@@ -1,0 +1,55 @@
+name: 'ECR Login via OIDC'
+description: 'Configures AWS credentials via OIDC, assumes ECR push role, and logs into private and/or public ECR registries.'
+
+inputs:
+  aws-region:
+    description: 'AWS region for ECR'
+    required: false
+    default: 'us-east-1'
+  login-public-ecr:
+    description: 'Whether to also log into ECR Public (true/false)'
+    required: false
+    default: 'false'
+
+outputs:
+  ecr-registry:
+    description: 'The private ECR registry URI'
+    value: ${{ steps.login-ecr.outputs.registry }}
+  ecr-public-registry:
+    description: 'The public ECR registry URI (only set when login-public-ecr is true)'
+    value: ${{ steps.login-ecr-public.outputs.registry }}
+
+runs:
+  using: 'composite'
+  steps:
+    # Step 1: Authenticate via OIDC
+    - name: Configure AWS credentials via OIDC
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: ${{ env.AWS_GITHUB_OIDC_ROLE }}
+        aws-region: ${{ inputs.aws-region }}
+        role-session-name: gha-ecr-oidc-${{ github.run_id }}-${{ github.run_attempt }}
+        role-skip-session-tagging: false
+
+    # Step 2: Role chain into the ECR push role
+    - name: Assume ECR push role with tags
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: ${{ env.AWS_ECR_LOGIN_ROLE }}
+        aws-region: ${{ inputs.aws-region }}
+        role-chaining: true
+        role-session-name: ecr-push-${{ github.run_id }}-${{ github.run_attempt }}
+        role-skip-session-tagging: false
+
+    # Step 3: Login to private ECR
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    # Step 4: Conditionally login to public ECR
+    - name: Login to Amazon ECR Public
+      if: inputs.login-public-ecr == 'true'
+      id: login-ecr-public
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        registry-type: public
