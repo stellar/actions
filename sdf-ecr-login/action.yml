@@ -2,6 +2,12 @@ name: 'ECR Login via OIDC'
 description: 'Configures AWS credentials via OIDC, assumes ECR push role, and logs into private and/or public ECR registries.'
 
 inputs:
+  aws-oidc-role:
+    description: 'ARN of the IAM role to assume via OIDC'
+    required: true
+  aws-ecr-login-role:
+    description: 'ARN of the IAM role to assume for ECR push (role chaining)'
+    required: true
   aws-region:
     description: 'AWS region for ECR'
     required: false
@@ -26,7 +32,7 @@ runs:
     - name: Configure AWS credentials via OIDC
       uses: aws-actions/configure-aws-credentials@v6
       with:
-        role-to-assume: ${{ env.AWS_GITHUB_OIDC_ROLE }}
+        role-to-assume: ${{ inputs.aws-oidc-role }}
         aws-region: ${{ inputs.aws-region }}
         role-session-name: gha-ecr-oidc-${{ github.run_id }}-${{ github.run_attempt }}
         role-skip-session-tagging: false
@@ -35,7 +41,7 @@ runs:
     - name: Assume ECR push role with tags
       uses: aws-actions/configure-aws-credentials@v6
       with:
-        role-to-assume: ${{ env.AWS_ECR_LOGIN_ROLE }}
+        role-to-assume: ${{ inputs.aws-ecr-login-role }}
         aws-region: ${{ inputs.aws-region }}
         role-chaining: true
         role-session-name: ecr-push-${{ github.run_id }}-${{ github.run_attempt }}
