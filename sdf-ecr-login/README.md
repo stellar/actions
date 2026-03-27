@@ -47,7 +47,7 @@ steps:
       IMAGE_TAG: ${{ github.sha }}
     run: |
       echo "Pushing image to public repo"
-      docker build $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG .
+      -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG .
       docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG
 
 ```
