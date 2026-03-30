@@ -59,3 +59,31 @@ runs:
       uses: aws-actions/amazon-ecr-login@v2
       with:
         registry-type: public
+
+    # Create repository if repository doesn't exist
+    - name: Ensure ECR repository exists with correct tag
+      shell: bash
+      run: |
+        REPO_NAME="${{ inputs.ecr-repository }}"
+        REGION="${{ inputs.aws-region }}"
+        REPO_TAG="${{ github.repository }}"
+        ACCOUNT_ID="<>"
+        REPO_ARN="arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/${REPO_NAME}"
+
+        if aws ecr describe-repositories --repository-names "$REPO_NAME" --region "$REGION" 2>/dev/null; then
+          # Repo exists - verify it has the Repository tag
+          TAG_VALUE=$(aws ecr list-tags-for-resource --resource-arn "$REPO_ARN" --region "$REGION" \
+            | jq -r '.tags[] | select(.Key=="Repository") | .Value')
+          if [ -z "$TAG_VALUE" ]; then
+            echo "::error::ECR repository '${REPO_NAME}' exists but has no 'Repository' tag. Cannot push."
+            exit 1
+          fi
+          echo "Repository exists with Repository tag: ${TAG_VALUE}"
+        else
+          # Repo doesn't exist - create with required tag
+          echo "Creating ECR repository '${REPO_NAME}' with Repository=${REPO_TAG}"
+          aws ecr create-repository \
+            --repository-name "$REPO_NAME" \
+            --region "$REGION" \
+            --tags "Key=Repository,Value=${REPO_TAG}"
+        fi
