@@ -91,13 +91,15 @@ runs:
           echo "ECR repository '${REPO_NAME}' already exists"
         else
           echo "Creating ECR repository '${REPO_NAME}' with Repository=${REPO_TAG}"
-          aws ecr create-repository \
+          if ! aws ecr create-repository \
             --repository-name "$REPO_NAME" \
             --region "$REGION" \
-            --tags "Key=Repository,Value=${REPO_TAG}"
+            --tags "Key=Repository,Value=${REPO_TAG}" 2>&1; then
+            echo "::warning::Unable to create repository '${REPO_NAME}'. If this is a public repo, it must be created via Terraform."
+          fi
         fi
 
-        echo "Pushing ${IMAGE}"
+        echo "Attempting to push image to repository '${REPO_NAME}'"
         docker push "$IMAGE"
         SCRIPT
         chmod +x "$SCRIPT_DIR/ecr-push"
