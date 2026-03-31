@@ -63,8 +63,12 @@ runs:
     # Install ecr-push wrapper script onto PATH
     - name: Install ecr-push helper
       shell: bash
+      env:
+        RUNNER_TEMP: ${{ runner.temp }}
+        AWS_REGION_INPUT: ${{ inputs.aws-region }}
+        GITHUB_REPO: ${{ github.repository }}
       run: |
-        SCRIPT_DIR="${{ runner.temp }}/ecr-push-bin"
+        SCRIPT_DIR="${RUNNER_TEMP}/ecr-push-bin"
         mkdir -p "$SCRIPT_DIR"
         cat > "$SCRIPT_DIR/ecr-push" << 'SCRIPT'
         #!/usr/bin/env bash
@@ -98,5 +102,5 @@ runs:
         SCRIPT
         chmod +x "$SCRIPT_DIR/ecr-push"
         echo "$SCRIPT_DIR" >> "$GITHUB_PATH"
-        echo "ECR_PUSH_REGION=${{ inputs.aws-region }}" >> "$GITHUB_ENV"
-        echo "ECR_PUSH_REPO_TAG=${{ github.repository }}" >> "$GITHUB_ENV"
+        echo "ECR_PUSH_REGION=${AWS_REGION_INPUT}" >> "$GITHUB_ENV"
+        echo "ECR_PUSH_REPO_TAG=${GITHUB_REPO}" >> "$GITHUB_ENV"
