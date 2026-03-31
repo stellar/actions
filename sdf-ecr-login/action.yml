@@ -59,3 +59,48 @@ runs:
       uses: aws-actions/amazon-ecr-login@v2
       with:
         registry-type: public
+
+    # Install ecr-push wrapper script onto PATH
+    - name: Install ecr-push helper
+      shell: bash
+      env:
+        RUNNER_TEMP: ${{ runner.temp }}
+        AWS_REGION_INPUT: ${{ inputs.aws-region }}
+        GITHUB_REPO: ${{ github.repository }}
+      run: |
+        SCRIPT_DIR="${RUNNER_TEMP}/ecr-push-bin"
+        mkdir -p "$SCRIPT_DIR"
+        cat > "$SCRIPT_DIR/ecr-push" << 'SCRIPT'
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        if [ $# -ne 1 ]; then
+          echo "Usage: ecr-push <image:tag>"
+          exit 1
+        fi
+
+        IMAGE="$1"
+        REGION="${ECR_PUSH_REGION}"
+        REPO_TAG="${ECR_PUSH_REPO_TAG}"
+
+        # Extract repo name from image URI: <account>.dkr.ecr.<region>.amazonaws.com/<repo-name>:<tag>
+        REPO_NAME=$(echo "$IMAGE" | sed 's|^[^/]*/||; s|:[^:]*$||')
+
+        # Check if repo exists, create if not
+        if aws ecr describe-repositories --repository-names "$REPO_NAME" --region "$REGION" 2>/dev/null; then
+          echo "ECR repository '${REPO_NAME}' already exists"
+        else
+          echo "Creating ECR repository '${REPO_NAME}' with Repository=${REPO_TAG}"
+          aws ecr create-repository \
+            --repository-name "$REPO_NAME" \
+            --region "$REGION" \
+            --tags "Key=Repository,Value=${REPO_TAG}"
+        fi
+
+        echo "Pushing ${IMAGE}"
+        docker push "$IMAGE"
+        SCRIPT
+        chmod +x "$SCRIPT_DIR/ecr-push"
+        echo "$SCRIPT_DIR" >> "$GITHUB_PATH"
+        echo "ECR_PUSH_REGION=${AWS_REGION_INPUT}" >> "$GITHUB_ENV"
+        echo "ECR_PUSH_REPO_TAG=${GITHUB_REPO}" >> "$GITHUB_ENV"
