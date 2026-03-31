@@ -1,6 +1,8 @@
 # ECR Login via OIDC — Composite Action
 
-Reusable GitHub Actions composite action that handles AWS OIDC authentication and ECR login (private and public). Callers must provide the OIDC and ECR role ARNs as inputs, and can optionally override the AWS region and enable public ECR login.
+Reusable GitHub Actions composite action that handles AWS OIDC authentication, ECR login (private and public), and automatic ECR repository creation. Callers must provide the OIDC and ECR role ARNs as inputs, and can optionally override the AWS region and enable public ECR login.
+
+This action also installs an `ecr-push` CLI command that replaces `docker push`. It automatically creates the ECR repository (with the correct `Repository` tag) if it doesn't already exist, then pushes the image.
 
 ## Usage
 
@@ -27,31 +29,36 @@ steps:
     env:
       ECR_REGISTRY: ${{ steps.ecr-login.outputs.ecr-registry }}
       IMAGE_TAG: ${{ github.sha }}
-      ECR_REPOSITORY: dev/image-name # Format: <namespace>/<image-name>. Use dev, stg, or prd as namespace. The repository dev/image-name must have the tag Repository: <stellar/github-repo-name>, where github-repo-name is the repo running the GitHub Action.
+      ECR_REPOSITORY: dev/image-name # Format: <namespace>/<image-name>. Use dev, stg, or prd as namespace.
     run: |
       docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
 
-    # Push image to private AWS ECR registry.
+    # Push image to private AWS ECR registry using ecr-push.
+    # ecr-push automatically creates the ECR repository if it doesn't exist.
   - name: Push image to Amazon ECR private registry
     env:
       ECR_REGISTRY: ${{ steps.ecr-login.outputs.ecr-registry }}
       IMAGE_TAG: ${{ github.sha }}
+      ECR_REPOSITORY: dev/image-name
     run: |
-      docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-    # Build and push image to public AWS ECR registry: public.ecr.aws/stellar/<image-name>
-  - name: Build and push image to Amazon ECR public repository
-    env:
-      ECR_PUBLIC_REGISTRY: ${{ steps.ecr-login.outputs.ecr-public-registry }}
-      REGISTRY_ALIAS: stellar
-      REPOSITORY: image-name # The AWS ECR public repository stellar/image-name must have the tag Repository: <stellar/github-repo-name>, where github-repo-name is the repo running the GitHub Action.
-      IMAGE_TAG: ${{ github.sha }}
-    run: |
-      echo "Pushing image to public repo"
-      -t $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG .
-      docker push $ECR_PUBLIC_REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG
+      ecr-push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
 ```
+
+## `ecr-push` CLI
+
+The action installs `ecr-push` onto `$GITHUB_PATH`, making it available in all subsequent steps. Use it as a drop-in replacement for `docker push`:
+
+```bash
+ecr-push <image:tag>
+```
+
+It will:
+1. Extract the repository name from the image URI
+2. Create the ECR repository if it doesn't exist, tagging it with `Repository: <owner/repo>` (derived from `github.repository`)
+3. Push the image via `docker push`
+
+**Note:** `ecr-push` only supports private ECR repositories. Public ECR repositories are managed via Terraform and must be created separately.
 
 ## Inputs
 
@@ -63,7 +70,7 @@ steps:
 | `login-public-ecr` | no | `false` | Set to `true` to also log into ECR Public |
 
 
-## Important security note: 
-1. For both private and public AWS ECR repositories, the repository (e.g., dev/image-name or stellar/image-name) must have the tag Repository: <stellar/github-repo-name>, where github-repo-name is the name of the repository executing the GitHub Action. This ensures only authorized workflows can push images.
+## Important security note:
+1. ECR repositories created by `ecr-push` are automatically tagged with `Repository: <owner/repo>` (e.g., `stellar/my-service`). The IAM policy ensures only workflows from the matching GitHub repository can push images, as the tag must match the caller's `github.repository`.
 
 2. Always include a `permissions` section with `id-token: write` and `contents: read` to enable OIDC authentication. These permissions are required for secure AWS authentication and access to repository contents.
