@@ -89,14 +89,14 @@ runs:
         # Check if repo exists, create if not
         if aws ecr describe-repositories --repository-names "$REPO_NAME" --region "$REGION" 2>/dev/null; then
           echo "ECR repository '${REPO_NAME}' already exists"
-        else
+        elif [[ "$REPO_NAME" =~ ^(dev|stg|prd)/ ]]; then
           echo "Creating ECR repository '${REPO_NAME}' with Repository=${REPO_TAG}"
-          if ! aws ecr create-repository \
+          aws ecr create-repository \
             --repository-name "$REPO_NAME" \
             --region "$REGION" \
-            --tags "Key=Repository,Value=${REPO_TAG}" 2>&1; then
-            echo "::warning::Unable to create repository '${REPO_NAME}'. If this is a public repo, it must be created via Terraform."
-          fi
+            --tags "Key=Repository,Value=${REPO_TAG}"
+        else
+          echo "::warning::Repository '${REPO_NAME}' does not exist and is not under dev/, stg/, or prd/. Skipping creation — these repositories must be managed via Terraform."
         fi
 
         echo "Attempting to push image to repository '${REPO_NAME}'"
