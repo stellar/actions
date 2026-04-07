@@ -2,16 +2,6 @@ name: 'ECR Login via OIDC'
 description: 'Configures AWS credentials via OIDC, assumes ECR push role, and logs into private and/or public ECR registries.'
 
 inputs:
-  aws-oidc-role:
-    description: 'ARN of the IAM role to assume via OIDC'
-    required: true
-  aws-ecr-login-role:
-    description: 'ARN of the IAM role to assume for ECR push (role chaining)'
-    required: true
-  aws-region:
-    description: 'AWS region for ECR'
-    required: false
-    default: 'us-east-1'
   login-public-ecr:
     description: 'Whether to also log into ECR Public (true/false)'
     required: false
@@ -32,8 +22,8 @@ runs:
     - name: Configure AWS credentials via OIDC
       uses: aws-actions/configure-aws-credentials@v6
       with:
-        role-to-assume: ${{ inputs.aws-oidc-role }}
-        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: "arn:aws:iam::746476062914:role/github-actions-ecr-policy"
+        aws-region: "us-east-1"
         role-session-name: gha-ecr-oidc-${{ github.run_id }}-${{ github.run_attempt }}
         role-skip-session-tagging: false
 
@@ -41,8 +31,8 @@ runs:
     - name: Assume ECR push role with tags
       uses: aws-actions/configure-aws-credentials@v6
       with:
-        role-to-assume: ${{ inputs.aws-ecr-login-role }}
-        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: "arn:aws:iam::746476062914:role/github-actions-ecr-push"
+        aws-region: "us-east-1"
         role-chaining: true
         role-session-name: ecr-push-${{ github.run_id }}-${{ github.run_attempt }}
         role-skip-session-tagging: false
@@ -65,7 +55,7 @@ runs:
       shell: bash
       env:
         RUNNER_TEMP: ${{ runner.temp }}
-        AWS_REGION_INPUT: ${{ inputs.aws-region }}
+        AWS_REGION_INPUT: "us-east-1"
         GITHUB_REPO: ${{ github.repository }}
       run: |
         SCRIPT_DIR="${RUNNER_TEMP}/ecr-push-bin"
@@ -89,6 +79,17 @@ runs:
         # Check if repo exists, create if not
         if aws ecr describe-repositories --repository-names "$REPO_NAME" --region "$REGION" 2>/dev/null; then
           echo "ECR repository '${REPO_NAME}' already exists"
+          # Check if Repository tag exists, add it if missing
+          EXISTING_TAGS=$(aws ecr list-tags-for-resource \
+            --resource-arn "$(aws ecr describe-repositories --repository-names "$REPO_NAME" --region "$REGION" --query 'repositories[0].repositoryArn' --output text)" \
+            --region "$REGION" --query 'tags[?Key==`Repository`].Value' --output text 2>/dev/null || true)
+          if [ -z "$EXISTING_TAGS" ]; then
+            echo "Adding Repository tag to '${REPO_NAME}'"
+            aws ecr tag-resource \
+              --resource-arn "$(aws ecr describe-repositories --repository-names "$REPO_NAME" --region "$REGION" --query 'repositories[0].repositoryArn' --output text)" \
+              --region "$REGION" \
+              --tags "Key=Repository,Value=${REPO_TAG}"
+          fi
         elif [[ "$REPO_NAME" =~ ^(dev|stg|prd)/ ]]; then
           echo "Creating ECR repository '${REPO_NAME}' with Repository=${REPO_TAG}"
           aws ecr create-repository \
