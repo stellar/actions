@@ -54,7 +54,8 @@ workflows.
 | [rust-bump-version] | Workflow | Updates the version in Rust crates to a input version. |
 | [rust-publish-dry-run] | Run a package verification on all crates in a workspace in their published form that automatically figures out the crate dependencies and order to publish (works only for repos without a binary). |
 | [rust-publish-dry-run-v2] | Run a package verification on all crates in a workspace in their published form that requires an explicit list of crates to publish (works with all repos). |
-| [rust-publish] | Workflow | Publish all crates in a workspace. |
+| [rust-publish] | Workflow | Publish all crates in a workspace using `cargo-workspaces`. |
+| [rust-publish-v2] | Workflow | Publish all crates in a workspace using the built-in `cargo publish --workspace` command. |
 
 ### Project Management
 
@@ -70,6 +71,7 @@ workflows.
 [rust-publish-dry-run]: ./.github/workflows/rust-publish-dry-run.yml
 [rust-publish-dry-run-v2]: ./.github/workflows/rust-publish-dry-run-v2.yml
 [rust-publish]: ./.github/workflows/rust-publish.yml
+[rust-publish-v2]: ./.github/workflows/rust-publish-v2.yml
 [update-completed-sprint-on-issue-closed]: ./.github/workflows/update-completed-sprint-on-issue-closed.yml
 [disk-cleanup]: ./disk-cleanup
 [sdf-ecr-login]: ./sdf-ecr-login/action.yml
