@@ -62,6 +62,12 @@ workflows.
 | ---- | ---- | ----------- |
 | [update-completed-sprint-on-issue-closed] | Workflow | Updates the CompletedSprint project field when an issue/PR is closed. |
 
+### Code Review
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [claude-review] | Workflow | Runs Claude to review a pull request. Callers should trigger on `pull_request` (recommended for safety). Use `pull_request_target` only for repos that strictly require reviewing fork-based contributions. See the workflow's security note. |
+
 [@stellar]: https://github.com/stellar
 
 [rust-cache]: ./rust-cache
@@ -71,6 +77,7 @@ workflows.
 [rust-publish-dry-run-v2]: ./.github/workflows/rust-publish-dry-run-v2.yml
 [rust-publish]: ./.github/workflows/rust-publish.yml
 [update-completed-sprint-on-issue-closed]: ./.github/workflows/update-completed-sprint-on-issue-closed.yml
+[claude-review]: ./.github/workflows/claude-review.yml
 [disk-cleanup]: ./disk-cleanup
 [sdf-ecr-login]: ./sdf-ecr-login/action.yml
 [README-rust-release.md]: README-rust-release.md
