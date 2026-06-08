@@ -47,7 +47,7 @@ runs:
     run: |
       curl --fail --location \
         --retry 5 --retry-delay 5 --retry-connrefused --retry-all-errors \
-        --connect-timeout 30 \
+        --connect-timeout 30 --max-time 300 \
         --output /tmp/$SCCACHE_FILE https://github.com/mozilla/sccache/releases/download/$SCCACHE_VERSION/$SCCACHE_FILE
       $SHASUM -c <(echo "$SCCACHE_FILE_SHA256  /tmp/$SCCACHE_FILE")
       mkdir -p "$HOME/.local/bin"
