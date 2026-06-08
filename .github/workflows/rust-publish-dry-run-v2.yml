@@ -19,6 +19,10 @@ on:
         required: false
         default: '--feature-powerset'
         type: string
+      cargo-hack-package-options:
+        required: false
+        default: ""
+        type: string
       additional-deb-packages:
         description: 'Space separated list of .deb packages that will be installed on ubuntu.'
         required: false
@@ -37,6 +41,8 @@ jobs:
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
       RUST_BACKTRACE: 1
     steps:
+    - uses: stellar/actions/disk-cleanup@main
+
     - uses: actions/checkout@v4
 
     - uses: stellar/actions/rust-cache@main
@@ -50,7 +56,7 @@ jobs:
 
     - name: Install additional dependencies (Linux)
       if: (inputs.target == 'aarch64-unknown-linux-gnu' || inputs.target == 'x86_64-unknown-linux-gnu') && inputs.additional-deb-packages != ''
-      run: sudo apt-get -y install ${{ inputs.additional-deb-packages }}
+      run: sudo apt-get update && sudo apt-get -y install ${{ inputs.additional-deb-packages }}
 
     # macOS comes with an old version of `make` that causes issues when building
     # some projects
@@ -58,12 +64,12 @@ jobs:
       if: inputs.target == 'x86_64-apple-darwin' || inputs.target == 'aarch64-apple-darwin'
       run: |
         brew update && brew install make
-        echo "$(brew --prefix)/opt/make/libexec/gnubin/" >> $GITHUB_PATH
+        echo "$(brew --prefix)/opt/make/libexec/gnubin/" >> "$GITHUB_PATH"
 
-    - uses: stellar/binaries@v21
+    - uses: stellar/binaries@v36
       with:
         name: cargo-hack
-        version: 0.5.28
+        version: 0.6.35
 
     - uses: stellar/binaries@v26
       with:
@@ -108,19 +114,20 @@ jobs:
     # the vendor/ directory.
     - name: Package Crates ${{ steps.crates.outputs.result }}
       run: |
+        # shellcheck disable=SC2043
         for name in ${{ steps.crates.outputs.result }}
         do
           version=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name=="'$name'") | .version')
           cargo package \
             --no-verify \
-            --package $name \
+            --package "$name" \
             --config "source.crates-io.replace-with = 'vendored-sources'" \
             --config "source.vendored-sources.directory = 'vendor'"
           path="target/package/${name}-${version}.crate"
           tar xvfz "$path" -C vendor/
           # Crates in the vendor directory require a checksum file, but it doesn't
           # matter if it is empty.
-          echo '{"files":{}}' > vendor/$name-$version/.cargo-checksum.json
+          echo '{"files":{}}' > "vendor/$name-$version/.cargo-checksum.json"
         done
 
     # Rerun the package command but with verification enabled this time. Tell
@@ -136,3 +143,4 @@ jobs:
         --config "source.vendored-sources.directory = 'vendor'"
         package
         --target ${{ inputs.target }}
+        ${{ inputs.cargo-hack-package-options }}

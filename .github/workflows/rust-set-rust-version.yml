@@ -24,7 +24,7 @@ jobs:
     - id: diff
       run: |
         if ! git diff --exit-code; then
-          echo "::set-output name=update::true"
+          echo "name=update::true" >> "$GITHUB_OUTPUT"
         fi
 
     # If the diff step indicates an update is required, create a branch and push

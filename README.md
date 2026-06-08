@@ -39,8 +39,10 @@ jobs:
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [rust-cache] | Action | Caches dependencies, install artifacts, and build artifacts in Rust projects. |
+| [disk-cleanup] | Action | Frees disk space by removing unnecessary files. |
 | [rust-set-rust-version] | Workflow | Updates the rust-version in Rust crates to the latest stable version. |
 | [rust-check-git-rev-deps] | Workflow | Check that git rev dependencies do not reference revisions likely to be orphaned. |
+| [sdf-ecr-login] | Action | Abstraction for SDF's AWS ECR login steps. |
 
 #### Releasing / Publishing
 
@@ -69,5 +71,6 @@ workflows.
 [rust-publish-dry-run-v2]: ./.github/workflows/rust-publish-dry-run-v2.yml
 [rust-publish]: ./.github/workflows/rust-publish.yml
 [update-completed-sprint-on-issue-closed]: ./.github/workflows/update-completed-sprint-on-issue-closed.yml
-
+[disk-cleanup]: ./disk-cleanup
+[sdf-ecr-login]: ./sdf-ecr-login/action.yml
 [README-rust-release.md]: README-rust-release.md
