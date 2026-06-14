@@ -43,7 +43,7 @@ jobs:
     steps:
     - uses: stellar/actions/disk-cleanup@main
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - uses: stellar/actions/rust-cache@main
 
@@ -66,12 +66,12 @@ jobs:
         brew update && brew install make
         echo "$(brew --prefix)/opt/make/libexec/gnubin/" >> "$GITHUB_PATH"
 
-    - uses: stellar/binaries@v36
+    - uses: stellar/binaries@v79
       with:
         name: cargo-hack
         version: 0.6.35
 
-    - uses: stellar/binaries@v26
+    - uses: stellar/binaries@v79
       with:
         name: cargo-workspaces
         version: 0.3.4
@@ -95,7 +95,7 @@ jobs:
     # If a list of crates weren't provided, prepare a list by asking
     # cargo-workspaces for the order it would publish the crates in.
     - name: Prepare List of Crates Ordered by Publish-Order
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       id: crates
       with:
         script: |
