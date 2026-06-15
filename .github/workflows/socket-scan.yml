@@ -73,8 +73,8 @@ jobs:
             --reach-continue-on-missing-lock-files \
             . 2>&1 | tee /tmp/scan.log
           rc=${PIPESTATUS[0]}
-          if [ $rc -eq 0 ] && grep -qE "Reachability falls back to Tier 2|fallback to the results from the pre-computed" /tmp/scan.log; then
+          if [ "$rc" -eq 0 ] && grep -qE "Reachability falls back to Tier 2|fallback to the results from the pre-computed" /tmp/scan.log; then
             echo "::warning::Socket scan completed with Tier 2 fallbacks - some vulnerabilities used precomputed reachability instead of full Tier 1"
           fi
-          exit $rc
+          exit "$rc"
 
