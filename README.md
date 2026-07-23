@@ -4,7 +4,7 @@ This repository contains GitHub Actions and GitHub Actions Workflows that are
 shared by [@stellar] repositories.
 
 > [!WARNING]
-> The actions and workflows are not suitable for use outside of [@stellar] repositories. They contain assumptions, features, and behaviors to   meet specific bespoke requirements the [@stellar] repositories that may be surprising or even harmful in other use cases.
+> The actions and workflows are not suitable for use outside of [@stellar] repositories. They contain assumptions, features, and behaviors to  meet specific requirements the [@stellar] repositories have that may be harmful in other use cases.
 
 ## Usage
 
