@@ -3,7 +3,15 @@
 This repository contains GitHub Actions and GitHub Actions Workflows that are
 shared by [@stellar] repositories.
 
+> [!WARNING]
+> The actions and workflows are not suitable for use outside of [@stellar] repositories. They contain assumptions, features, and behaviors to  meet specific requirements the [@stellar] repositories have that may be harmful in other use cases.
+
 ## Usage
+
+### Limitations
+
+> [!IMPORTANT]
+> The actions and workflows in this repository are not safe for use in any situation that executes the action or workflow with write access on forks or from other untrusted sources. For example, the `pull_request_target` event.
 
 ### Actions
 
