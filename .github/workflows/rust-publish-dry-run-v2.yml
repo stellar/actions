@@ -28,7 +28,7 @@ on:
         required: false
         default: ''
         type: string
-      additional-env:
+      env:
         description: 'Newline separated KEY=VALUE pairs set as environment variables for the build.'
         required: false
         default: ''
@@ -50,11 +50,11 @@ jobs:
 
     - uses: actions/checkout@v4
 
-    - name: Set additional environment variables
-      if: inputs.additional-env != ''
+    - name: Set environment variables
+      if: inputs.env != ''
       run: printf '%s\n' "$ADDITIONAL_ENV" >> "$GITHUB_ENV"
       env:
-        ADDITIONAL_ENV: ${{ inputs.additional-env }}
+        ADDITIONAL_ENV: ${{ inputs.env }}
 
     - uses: stellar/actions/rust-cache@main
 
