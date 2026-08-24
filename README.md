@@ -51,6 +51,7 @@ jobs:
 | [rust-set-rust-version] | Workflow | Updates the rust-version in Rust crates to the latest stable version. |
 | [rust-check-git-rev-deps] | Workflow | Check that git rev dependencies do not reference revisions likely to be orphaned. |
 | [sdf-ecr-login] | Action | Abstraction for SDF's AWS ECR login steps. |
+| [sdf-pr-preview] | Action | Builds and publishes an ArgoCD-deployed preview environment for org-member PRs. |
 
 #### Releasing / Publishing
 
@@ -81,4 +82,5 @@ workflows.
 [update-completed-sprint-on-issue-closed]: ./.github/workflows/update-completed-sprint-on-issue-closed.yml
 [disk-cleanup]: ./disk-cleanup
 [sdf-ecr-login]: ./sdf-ecr-login/action.yml
+[sdf-pr-preview]: ./sdf-pr-preview
 [README-rust-release.md]: README-rust-release.md
