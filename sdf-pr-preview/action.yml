@@ -52,10 +52,17 @@ runs:
         --body 'PR Preview: torn down'
 
     # -------------------------------------------------------------------------
-    # Gate: is the PR author a member of the org?
+    # Gate: every identity that could have supplied the head commit must be an
+    # org member, not just the PR opener:
+    #   - AUTHOR: who opened the PR. Not enough on its own - a member can open
+    #     a PR from a fork someone else controls.
+    #   - ACTOR: who triggered THIS run. On `synchronize` that is whoever
+    #     pushed the new head, so an outsider pushing to a member's fork
+    #     fails the gate even though the member opened the PR.
+    #   - HEAD_OWNER: who owns the head repository. For same-repo PRs this is
+    #     the org itself; for forks the fork owner must be a member, so an
+    #     outsider-controlled fork is never built regardless of who opened it.
     # GITHUB_TOKEN cannot read org membership, so this needs an App token.
-    # The gate applies to every PR - branch or fork - so an org member's fork
-    # PR gets a preview while an outside collaborator's does not.
     # Safe on fork PRs: no fork code has been checked out or run at this
     # point, so the App token is only ever handled by trusted steps.
     # -------------------------------------------------------------------------
@@ -73,15 +80,33 @@ runs:
       env:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}
         AUTHOR: ${{ github.event.pull_request.user.login }}
+        ACTOR: ${{ github.actor }}
+        HEAD_OWNER: ${{ github.event.pull_request.head.repo.owner.login }}
         ORG: ${{ github.repository_owner }}
       run: |
         # 204 = member (including private membership), 404 = not a member.
-        if gh api "/orgs/${ORG}/members/${AUTHOR}" --silent 2>/dev/null; then
-          echo "member=true" >> "$GITHUB_OUTPUT"
-          echo "::notice::${AUTHOR} is a member of ${ORG} - preview enabled"
-        else
-          echo "member=false" >> "$GITHUB_OUTPUT"
-          echo "::notice::${AUTHOR} is not a member of ${ORG} - preview skipped"
+        is_member() {
+          gh api "/orgs/${ORG}/members/$1" --silent 2>/dev/null
+        }
+
+        trusted=true
+        for login in "$AUTHOR" "$ACTOR"; do
+          if ! is_member "$login"; then
+            echo "::notice::${login} is not a member of ${ORG} - preview skipped"
+            trusted=false
+          fi
+        done
+
+        # Same-repo PRs: head owner IS the org. Anything else must be a
+        # member's personal fork.
+        if [ "$HEAD_OWNER" != "$ORG" ] && ! is_member "$HEAD_OWNER"; then
+          echo "::notice::head repo owner ${HEAD_OWNER} is not a member of ${ORG} - preview skipped"
+          trusted=false
+        fi
+
+        echo "member=${trusted}" >> "$GITHUB_OUTPUT"
+        if [ "$trusted" = "true" ]; then
+          echo "::notice::author, actor, and head repo owner are all members of ${ORG} - preview enabled"
         fi
 
     # -------------------------------------------------------------------------
