@@ -1,0 +1,173 @@
+# Builds a preview image for org-member PRs, marks the PR so ArgoCD's
+# ApplicationSet picks it up, and comments the URL. Handles teardown when the
+# PR closes. ArgoCD does the actual deploying.
+#
+# Composite actions cannot declare triggers, permissions, or concurrency.
+# The caller workflow must run this on `pull_request_target` (types: opened,
+# synchronize, reopened, closed) with `contents: read`, `id-token: write`,
+# `pull-requests: write`, and a per-PR concurrency group.
+# See .github/workflows/pr-preview.yml.
+
+name: 'PR Preview'
+description: 'Build and publish an ArgoCD-deployed preview image for org-member PRs'
+
+inputs:
+  app-id:
+    description: 'GitHub App ID used to check org membership'
+    required: true
+  private-key:
+    description: 'Private key of that GitHub App'
+    required: true
+  ecr-repository:
+    description: 'ECR repository to push the preview image to (e.g. dev/stellar-design-system)'
+    required: true
+  preview-host:
+    description: 'Hostname the preview will be served on'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # -------------------------------------------------------------------------
+    # PR closed or merged: immediate teardown, then nothing else runs.
+    # Redundant with the generator (a closed PR leaves its result set anyway),
+    # but it makes teardown immediate and leaves a trace in the PR timeline.
+    # -------------------------------------------------------------------------
+    - name: Remove preview label
+      if: github.event.action == 'closed'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: gh pr edit "${{ github.event.pull_request.number }}" --remove-label preview || true
+
+    - name: Comment teardown
+      if: github.event.action == 'closed'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: >-
+        gh pr comment "${{ github.event.pull_request.number }}"
+        --body 'PR Preview: torn down'
+
+    # -------------------------------------------------------------------------
+    # Gate: every identity that could have supplied the head commit must be an
+    # org member, not just the PR opener:
+    #   - AUTHOR: who opened the PR. Not enough on its own - a member can open
+    #     a PR from a fork someone else controls.
+    #   - ACTOR: who triggered THIS run. On `synchronize` that is whoever
+    #     pushed the new head, so an outsider pushing to a member's fork
+    #     fails the gate even though the member opened the PR.
+    #   - HEAD_OWNER: who owns the head repository. For same-repo PRs this is
+    #     the org itself; for forks the fork owner must be a member, so an
+    #     outsider-controlled fork is never built regardless of who opened it.
+    # GITHUB_TOKEN cannot read org membership, so this needs an App token.
+    # Safe on fork PRs: no fork code has been checked out or run at this
+    # point, so the App token is only ever handled by trusted steps.
+    # -------------------------------------------------------------------------
+    - id: app-token
+      if: github.event.action != 'closed'
+      uses: actions/create-github-app-token@v2
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}
+        owner: ${{ github.repository_owner }}
+
+    - id: check
+      if: github.event.action != 'closed'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        AUTHOR: ${{ github.event.pull_request.user.login }}
+        ACTOR: ${{ github.actor }}
+        HEAD_OWNER: ${{ github.event.pull_request.head.repo.owner.login }}
+        ORG: ${{ github.repository_owner }}
+      run: |
+        # 204 = member (including private membership), 404 = not a member.
+        is_member() {
+          gh api "/orgs/${ORG}/members/$1" --silent 2>/dev/null
+        }
+
+        trusted=true
+        for login in "$AUTHOR" "$ACTOR"; do
+          if ! is_member "$login"; then
+            echo "::notice::${login} is not a member of ${ORG} - preview skipped"
+            trusted=false
+          fi
+        done
+
+        # Same-repo PRs: head owner IS the org. Anything else must be a
+        # member's personal fork.
+        if [ "$HEAD_OWNER" != "$ORG" ] && ! is_member "$HEAD_OWNER"; then
+          echo "::notice::head repo owner ${HEAD_OWNER} is not a member of ${ORG} - preview skipped"
+          trusted=false
+        fi
+
+        echo "member=${trusted}" >> "$GITHUB_OUTPUT"
+        if [ "$trusted" = "true" ]; then
+          echo "::notice::author, actor, and head repo owner are all members of ${ORG} - preview enabled"
+        fi
+
+    # -------------------------------------------------------------------------
+    # Non-member PR: make sure no stale label survives.
+    # Keeps CI authoritative - a hand-applied label cannot create a preview
+    # for an image that was never built.
+    # -------------------------------------------------------------------------
+    - name: Revoke preview label
+      if: github.event.action != 'closed' && steps.check.outputs.member != 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: gh pr edit "${{ github.event.pull_request.number }}" --remove-label preview || true
+
+    # -------------------------------------------------------------------------
+    # Member PR: build, push, then mark the PR.
+    # This checkout replaces the caller's base-ref workspace with the PR head,
+    # not the synthetic merge commit. This SHA must match what the
+    # ApplicationSet injects as {{ .head_sha }}.
+    # -------------------------------------------------------------------------
+    - uses: actions/checkout@v4
+      if: steps.check.outputs.member == 'true'
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        persist-credentials: false
+
+    - uses: docker/setup-buildx-action@v3
+      if: steps.check.outputs.member == 'true'
+
+    # Handles OIDC auth, role assumption, and ECR login internally.
+    - id: ecr
+      if: steps.check.outputs.member == 'true'
+      uses: stellar/actions/sdf-ecr-login@main
+
+    - uses: docker/build-push-action@v6
+      if: steps.check.outputs.member == 'true'
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.ecr.outputs.ecr-registry }}/${{ inputs.ecr-repository }}:pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    # Applied only after the push succeeds, so the ApplicationSet never
+    # renders an Application whose image does not exist yet.
+    # The `preview` label must already exist in the repo.
+    - name: Enable preview
+      if: steps.check.outputs.member == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: gh pr edit "${{ github.event.pull_request.number }}" --add-label preview
+
+    - name: Comment preview URL
+      if: steps.check.outputs.member == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: >-
+        gh pr comment "${{ github.event.pull_request.number }}"
+        --body "PR Preview: https://${{ inputs.preview-host }}"
