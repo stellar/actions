@@ -1,0 +1,77 @@
+# Signal half of the PR preview flow. Run after the caller has built and
+# pushed its preview image(s). Verifies that every image the preview deploys
+# actually exists in the registry, and only then labels the PR (which is what
+# ArgoCD's ApplicationSet keys on) and comments the URL.
+#
+# The existence check is what upholds the invariant "label present => image
+# exists" now that the build lives in the caller: a miswired build step or a
+# mismatched tag fails here instead of producing a preview that can never
+# start.
+#
+# Must be guarded with `if: steps.<gate-id>.outputs.member == 'true'` in the
+# caller, like every other post-gate step. The registry lookup relies on the
+# docker credentials left on the runner by the caller's registry login
+# (e.g. stellar/actions/sdf-ecr-login), which the caller needed to push anyway.
+
+name: 'PR Preview - Publish'
+description: 'Verify the preview images exist, then label the PR and comment the URL'
+
+inputs:
+  images:
+    description: >-
+      Fully qualified image references (registry/repository:tag) the preview
+      deploys, one per line. Every one must exist before the label is applied.
+    required: true
+  preview-host:
+    description: 'Hostname the preview will be served on'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Verify preview images exist
+      shell: bash
+      env:
+        IMAGES: ${{ inputs.images }}
+      run: |
+        set -uo pipefail
+        found=0
+        missing=0
+        while IFS= read -r image; do
+          image="$(echo "$image" | xargs)"   # trim
+          [ -z "$image" ] && continue
+          if docker manifest inspect "$image" >/dev/null 2>&1; then
+            echo "found ${image}"
+            found=$((found + 1))
+          else
+            echo "::error::${image} does not exist in the registry (not pushed, wrong tag, or not logged in)"
+            missing=$((missing + 1))
+          fi
+        done <<< "$IMAGES"
+
+        if [ "$found" -eq 0 ] && [ "$missing" -eq 0 ]; then
+          echo "::error::'images' is empty - at least one image reference is required"
+          exit 1
+        fi
+        [ "$missing" -eq 0 ]
+
+    # Applied only after every image is confirmed present. Combined with the
+    # up-front removal in `gate`, the label is present only while the images
+    # it implies exist: a failed or cancelled build leaves the label off,
+    # never a broken preview. The `preview` label must already exist in the
+    # repo.
+    - name: Enable preview
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: gh pr edit "${{ github.event.pull_request.number }}" --add-label preview
+
+    - name: Comment preview URL
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: >-
+        gh pr comment "${{ github.event.pull_request.number }}"
+        --body "PR Preview: https://${{ inputs.preview-host }}"
