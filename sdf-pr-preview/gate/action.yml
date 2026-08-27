@@ -1,15 +1,24 @@
-# Builds a preview image for org-member PRs, marks the PR so ArgoCD's
-# ApplicationSet picks it up, and comments the URL. Handles teardown when the
-# PR closes. ArgoCD does the actual deploying.
+# Policy half of the PR preview flow. Withdraws the `preview` label, handles
+# teardown on close, and decides whether this PR may have a preview. Emits
+# `member` and `image-tag`; the caller then builds and pushes its own
+# image(s) - guarded by `member` - and calls sdf-pr-preview/publish.
 #
 # Composite actions cannot declare triggers, permissions, or concurrency.
-# The caller workflow must run this on `pull_request_target` (types: opened,
+# The caller workflow must run on `pull_request_target` (types: opened,
 # synchronize, reopened, closed) with `contents: read`, `id-token: write`,
 # `pull-requests: write`, and a per-PR concurrency group.
-# See .github/workflows/pr-preview.yml.
+#
+# Caller contract - the trust boundary now lives in the caller workflow:
+#   - This step MUST run before any step that checks out or executes PR code.
+#   - EVERY later step that touches PR code (checkout, build, push, publish)
+#     MUST carry `if: steps.<gate-id>.outputs.member == 'true'`.
+#   - Check out `github.event.pull_request.head.sha` (not the default base
+#     ref) with `persist-credentials: false`.
+#   - Tag every preview image with `image-tag`, verbatim.
+# See ../README.md.
 
-name: 'PR Preview'
-description: 'Build and publish an ArgoCD-deployed preview image for org-member PRs'
+name: 'PR Preview - Gate'
+description: 'Withdraw the preview signal and decide whether this PR may have a preview'
 
 inputs:
   app-id:
@@ -18,23 +27,36 @@ inputs:
   private-key:
     description: 'Private key of that GitHub App'
     required: true
-  ecr-repository:
-    description: 'ECR repository to push the preview image to (e.g. dev/stellar-design-system)'
-    required: true
-  preview-host:
-    description: 'Hostname the preview will be served on'
-    required: true
+
+outputs:
+  member:
+    description: >-
+      'true' when the event is not `closed` and the PR author, the actor who
+      triggered this run, and the head repository owner are all org members.
+      Anything else (including a `closed` event) is 'false'.
+    value: ${{ steps.check.outputs.member == 'true' }}
+  image-tag:
+    description: >-
+      Tag every preview image must carry: pr-<number>-<head-sha>. Must match
+      what the ApplicationSet renders as pr-{{ .number }}-{{ .head_sha }}.
+    value: pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
 
 runs:
   using: composite
   steps:
     # -------------------------------------------------------------------------
-    # PR closed or merged: immediate teardown, then nothing else runs.
-    # Redundant with the generator (a closed PR leaves its result set anyway),
-    # but it makes teardown immediate and leaves a trace in the PR timeline.
+    # Withdraw the signal first, on every event. The ApplicationSet derives
+    # {{ .head_sha }} from the live PR, so on `synchronize` a label left over
+    # from the previous build would let it deploy pr-<number>-<new-sha> before
+    # that image is pushed - and point at a nonexistent tag for as long as
+    # that commit stays the head if the build fails. Removing the label up
+    # front makes the signal fail closed: it is absent whenever the image it
+    # implies might not exist, at the cost of the preview going dark while a
+    # rebuild is in flight.
+    # On `closed` this doubles as immediate teardown (redundant with the
+    # generator - a closed PR leaves its result set anyway - but immediate).
     # -------------------------------------------------------------------------
-    - name: Remove preview label
-      if: github.event.action == 'closed'
+    - name: Disable preview
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
@@ -108,66 +130,3 @@ runs:
         if [ "$trusted" = "true" ]; then
           echo "::notice::author, actor, and head repo owner are all members of ${ORG} - preview enabled"
         fi
-
-    # -------------------------------------------------------------------------
-    # Non-member PR: make sure no stale label survives.
-    # Keeps CI authoritative - a hand-applied label cannot create a preview
-    # for an image that was never built.
-    # -------------------------------------------------------------------------
-    - name: Revoke preview label
-      if: github.event.action != 'closed' && steps.check.outputs.member != 'true'
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-        GH_REPO: ${{ github.repository }}
-      run: gh pr edit "${{ github.event.pull_request.number }}" --remove-label preview || true
-
-    # -------------------------------------------------------------------------
-    # Member PR: build, push, then mark the PR.
-    # This checkout replaces the caller's base-ref workspace with the PR head,
-    # not the synthetic merge commit. This SHA must match what the
-    # ApplicationSet injects as {{ .head_sha }}.
-    # -------------------------------------------------------------------------
-    - uses: actions/checkout@v4
-      if: steps.check.outputs.member == 'true'
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-        persist-credentials: false
-
-    - uses: docker/setup-buildx-action@v3
-      if: steps.check.outputs.member == 'true'
-
-    # Handles OIDC auth, role assumption, and ECR login internally.
-    - id: ecr
-      if: steps.check.outputs.member == 'true'
-      uses: stellar/actions/sdf-ecr-login@main
-
-    - uses: docker/build-push-action@v6
-      if: steps.check.outputs.member == 'true'
-      with:
-        context: .
-        push: true
-        tags: ${{ steps.ecr.outputs.ecr-registry }}/${{ inputs.ecr-repository }}:pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max,ignore-error=true
-
-    # Applied only after the push succeeds, so the ApplicationSet never
-    # renders an Application whose image does not exist yet.
-    # The `preview` label must already exist in the repo.
-    - name: Enable preview
-      if: steps.check.outputs.member == 'true'
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-        GH_REPO: ${{ github.repository }}
-      run: gh pr edit "${{ github.event.pull_request.number }}" --add-label preview
-
-    - name: Comment preview URL
-      if: steps.check.outputs.member == 'true'
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-        GH_REPO: ${{ github.repository }}
-      run: >-
-        gh pr comment "${{ github.event.pull_request.number }}"
-        --body "PR Preview: https://${{ inputs.preview-host }}"
