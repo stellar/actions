@@ -6,6 +6,13 @@ inputs:
     description: 'Whether to also log into ECR Public (true/false)'
     required: false
     default: 'false'
+  auth-mode:
+    description: >-
+      How to obtain ECR push credentials. 'chain' (default) assumes github-actions-ecr-policy and then
+      github-actions-ecr-push with a Repository session tag. 'oidc' assumes github-actions-ecr directly with the
+      GitHub OIDC token; access is scoped by matching the token's sub claim to each ECR repository's Repository tag.
+    required: false
+    default: 'chain'
 
 outputs:
   ecr-registry:
@@ -18,8 +25,28 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    # Step 1: Authenticate via OIDC
+    - name: Validate auth-mode
+      shell: bash
+      env:
+        AUTH_MODE: ${{ inputs.auth-mode }}
+      run: |
+        case "$AUTH_MODE" in
+          chain|oidc) ;;
+          *) echo "::error::auth-mode must be 'chain' or 'oidc', got '${AUTH_MODE}'"; exit 1 ;;
+        esac
+
+    # auth-mode: oidc. Single role assumed with the GitHub OIDC token; no session tags.
+    - name: Configure AWS credentials via OIDC (sub-scoped role)
+      if: inputs.auth-mode == 'oidc'
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: "arn:aws:iam::746476062914:role/github-actions-ecr"
+        aws-region: "us-east-1"
+        role-session-name: gha-ecr-${{ github.run_id }}-${{ github.run_attempt }}
+
+    # auth-mode: chain. Step 1: Authenticate via OIDC
     - name: Configure AWS credentials via OIDC
+      if: inputs.auth-mode == 'chain'
       uses: aws-actions/configure-aws-credentials@v6
       with:
         role-to-assume: "arn:aws:iam::746476062914:role/github-actions-ecr-policy"
@@ -27,8 +54,9 @@ runs:
         role-session-name: gha-ecr-oidc-${{ github.run_id }}-${{ github.run_attempt }}
         role-skip-session-tagging: false
 
-    # Step 2: Role chain into the ECR push role
+    # auth-mode: chain. Step 2: Role chain into the ECR push role
     - name: Assume ECR push role with tags
+      if: inputs.auth-mode == 'chain'
       uses: aws-actions/configure-aws-credentials@v6
       with:
         role-to-assume: "arn:aws:iam::746476062914:role/github-actions-ecr-push"
