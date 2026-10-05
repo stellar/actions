@@ -8,11 +8,12 @@ inputs:
     default: 'false'
   auth-mode:
     description: >-
-      How to obtain ECR push credentials. 'chain' (default) assumes github-actions-ecr-policy and then
-      github-actions-ecr-push with a Repository session tag. 'oidc' assumes github-actions-ecr directly with the
-      GitHub OIDC token; access is scoped by matching the token's sub claim to each ECR repository's Repository tag.
+      How to obtain ECR push credentials. 'oidc' (default) assumes github-actions-ecr directly with the GitHub
+      OIDC token; access is scoped by matching the token's sub claim to each ECR repository's Repository tag.
+      'chain' assumes github-actions-ecr-policy and then github-actions-ecr-push with a Repository session tag;
+      it is a temporary opt-out and will be removed.
     required: false
-    default: 'chain'
+    default: 'oidc'
 
 outputs:
   ecr-registry:
