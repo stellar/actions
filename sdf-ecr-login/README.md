@@ -20,7 +20,6 @@ steps:
     uses: stellar/actions/sdf-ecr-login@main
     with:
       login-public-ecr: 'true'       # optional, defaults to false
-      # auth-mode: 'chain'           # optional, defaults to 'oidc'; see "Auth modes" below
 
     # Build docker image with registry details
   - name: Build docker image
@@ -63,14 +62,14 @@ It will:
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
 | `login-public-ecr` | no | `false` | Set to `true` to also log into ECR Public |
-| `auth-mode` | no | `oidc` | `oidc` or `chain`. See [Auth modes](#auth-modes) |
+| `auth-mode` | no | `oidc` | Deprecated; `oidc` is the only mode. `chain` is ignored with a warning. See [How access is scoped](#how-access-is-scoped) |
 
-## Auth modes
+## How access is scoped
 
-- `chain` (temporary opt-out, will be removed): assumes `github-actions-ecr-policy` with the GitHub OIDC token, then chains into `github-actions-ecr-push` with a `Repository` session tag.
-- `oidc` (default): assumes `github-actions-ecr` directly with the GitHub OIDC token. The IAM policy allows a push only when the token's `sub` claim (`repo:<owner>/<repo>:...`) matches the ECR repository's `Repository` tag, so the repository identity comes from GitHub rather than from the workflow. Existing `Repository` tags work unchanged.
+The action assumes `github-actions-ecr` directly with the GitHub OIDC token. The IAM policy allows a push only when the token's `sub` claim (`repo:<owner>/<repo>:...`) matches the ECR repository's `Repository` tag, so the repository identity comes from GitHub rather than from the workflow:
 
-`oidc` is the default. `prd/` pushes need to run on `main`, `master`, a tag or an environment; if a workflow breaks, set `auth-mode: chain` temporarily and fix it before the `chain` path is removed.
+- `dev/`, `stg/` and public ECR: any ref of the owning repository
+- `prd/`: only `main`, `master`, tags or environments of the owning repository
 
 
 ## Important security note:
