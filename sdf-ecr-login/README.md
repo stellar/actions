@@ -62,6 +62,14 @@ It will:
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
 | `login-public-ecr` | no | `false` | Set to `true` to also log into ECR Public |
+| `auth-mode` | no | `oidc` | Deprecated; `oidc` is the only mode. `chain` is ignored with a warning. See [How access is scoped](#how-access-is-scoped) |
+
+## How access is scoped
+
+The action assumes `github-actions-ecr` directly with the GitHub OIDC token. The IAM policy allows a push only when the token's `sub` claim (`repo:<owner>/<repo>:...`) matches the ECR repository's `Repository` tag, so the repository identity comes from GitHub rather than from the workflow:
+
+- `dev/`, `stg/` and public ECR: any ref of the owning repository
+- `prd/`: only `main`, `master`, tags or environments of the owning repository
 
 
 ## Important security note:

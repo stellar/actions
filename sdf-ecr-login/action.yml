@@ -6,6 +6,13 @@ inputs:
     description: 'Whether to also log into ECR Public (true/false)'
     required: false
     default: 'false'
+  auth-mode:
+    description: >-
+      Deprecated; 'oidc' is the only mode. The action assumes github-actions-ecr directly with the GitHub OIDC
+      token, and access is scoped by matching the token's sub claim to each ECR repository's Repository tag.
+      'chain' is no longer supported and is treated as 'oidc' with a warning.
+    required: false
+    default: 'oidc'
 
 outputs:
   ecr-registry:
@@ -18,35 +25,35 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    # Step 1: Authenticate via OIDC
-    - name: Configure AWS credentials via OIDC
-      uses: aws-actions/configure-aws-credentials@v6
-      with:
-        role-to-assume: "arn:aws:iam::746476062914:role/github-actions-ecr-policy"
-        aws-region: "us-east-1"
-        role-session-name: gha-ecr-oidc-${{ github.run_id }}-${{ github.run_attempt }}
-        role-skip-session-tagging: false
+    - name: Validate auth-mode
+      shell: bash
+      env:
+        AUTH_MODE: ${{ inputs.auth-mode }}
+      run: |
+        case "$AUTH_MODE" in
+          oidc) ;;
+          chain) echo "::warning::auth-mode 'chain' has been removed; using 'oidc'. Drop the auth-mode input." ;;
+          *) echo "::error::auth-mode must be 'oidc', got '${AUTH_MODE}'"; exit 1 ;;
+        esac
 
-    # Step 2: Role chain into the ECR push role
-    - name: Assume ECR push role with tags
-      uses: aws-actions/configure-aws-credentials@v6
+    # Single role assumed with the GitHub OIDC token; no session tags.
+    - name: Configure AWS credentials via OIDC (sub-scoped role)
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
       with:
-        role-to-assume: "arn:aws:iam::746476062914:role/github-actions-ecr-push"
+        role-to-assume: "arn:aws:iam::746476062914:role/github-actions-ecr"
         aws-region: "us-east-1"
-        role-chaining: true
-        role-session-name: ecr-push-${{ github.run_id }}-${{ github.run_attempt }}
-        role-skip-session-tagging: false
+        role-session-name: gha-ecr-${{ github.run_id }}-${{ github.run_attempt }}
 
     # Step 3: Login to private ECR
     - name: Login to Amazon ECR
       id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
+      uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
 
     # Step 4: Conditionally login to public ECR
     - name: Login to Amazon ECR Public
       if: inputs.login-public-ecr == 'true'
       id: login-ecr-public
-      uses: aws-actions/amazon-ecr-login@v2
+      uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
       with:
         registry-type: public
 
