@@ -113,10 +113,11 @@ The trust boundary lives in your workflow, so these are not optional:
 |---|---|---|
 | `app-id` | yes | GitHub App ID used to check org membership |
 | `private-key` | yes | Private key of that GitHub App |
+| `approval-label` | no | Label an org member can apply to a same-repo PR to approve one preview build when the author is not a member (e.g. an org-owned App bot). See [Maintainer-approved previews](#maintainer-approved-previews). Default: disabled |
 
 | Output | Description |
 |---|---|
-| `member` | `'true'` when the event is not `closed` and the PR author, triggering actor, and head-repo owner are all org members; otherwise `'false'` |
+| `member` | `'true'` when the event is not `closed` and either the PR author, triggering actor, and head-repo owner are all org members, or an org member applied `approval-label` to a same-repo PR; otherwise `'false'` |
 | `image-tag` | `pr-<number>-<head-sha>` — the tag every preview image must carry |
 
 ### `sdf-pr-preview/publish`
@@ -125,6 +126,38 @@ The trust boundary lives in your workflow, so these are not optional:
 |---|---|---|
 | `images` | yes | Fully qualified image references (`registry/repository:tag`), one per line; every one must exist before the label is applied |
 | `preview-host` | yes | Hostname the preview will be served on; commented on the PR as `https://<preview-host>` |
+
+## Maintainer-approved previews
+
+PRs opened by a GitHub App (e.g. a triage bot pushing to same-repo branches) fail the membership gate, because the App is not an org member. Setting `approval-label` lets a maintainer approve a preview by hand instead of trusting the App automatically:
+
+```yaml
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, closed, labeled]
+
+jobs:
+  preview:
+    # Required: without it, adding any label reruns the gate, which withdraws
+    # the `preview` label and takes a live preview down.
+    if: github.event.action != 'labeled' || github.event.label.name == 'preview-approved'
+    steps:
+      - id: gate
+        uses: stellar/actions/sdf-pr-preview/gate@main
+        with:
+          app-id: ${{ vars.PREVIEW_BOT_APP_ID }}
+          private-key: ${{ secrets.PREVIEW_BOT_PRIVATE_KEY }}
+          approval-label: preview-approved
+      # ...build and publish exactly as above
+```
+
+When a member applies the label, the gate skips the author check and builds the head SHA in that `labeled` event. Constraints:
+
+- **Same-repo only.** The head-repo owner must be the org; fork PRs cannot be approved this way.
+- **Member approval.** Whoever applied the label must be an org member (applying labels already needs triage access).
+- **One commit per approval.** The gate removes the approval label on every run, so a later push (`synchronize`) fails the gate again until a member re-applies it. The build is pinned to the head SHA in the `labeled` payload, so a push racing the approval is never built under it.
+
+The approval label must exist in the repo, like `preview`.
 
 ## Prerequisites
 

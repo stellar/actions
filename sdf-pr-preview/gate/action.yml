@@ -27,12 +27,23 @@ inputs:
   private-key:
     description: 'Private key of that GitHub App'
     required: true
+  approval-label:
+    description: >-
+      Optional. Name of a label an org member can apply to a same-repo PR to
+      approve one preview build of its current head, even when the PR author
+      is not an org member (e.g. a GitHub App bot). The label is removed on
+      every run, so each new head commit needs a fresh approval. The caller
+      must add `labeled` to its `pull_request_target` types and filter
+      `labeled` events down to this label. Empty (the default) disables it.
+    required: false
+    default: ''
 
 outputs:
   member:
     description: >-
-      'true' when the event is not `closed` and the PR author, the actor who
-      triggered this run, and the head repository owner are all org members.
+      'true' when the event is not `closed` and either the PR author, the
+      actor who triggered this run, and the head repository owner are all org
+      members, or an org member applied `approval-label` to a same-repo PR.
       Anything else (including a `closed` event) is 'false'.
     value: ${{ steps.check.outputs.member == 'true' }}
   image-tag:
@@ -63,6 +74,19 @@ runs:
         GH_REPO: ${{ github.repository }}
       run: gh pr edit "${{ github.event.pull_request.number }}" --remove-label preview || true
 
+    # The approval label is one-shot: it approves the head SHA in the event
+    # that applied it and nothing else. Clearing it on every run means a new
+    # push (`synchronize`) is never built on the strength of an old approval.
+    # This run still sees the label in its own event payload.
+    - name: Consume preview approval
+      if: inputs.approval-label != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        APPROVAL_LABEL: ${{ inputs.approval-label }}
+      run: gh pr edit "${{ github.event.pull_request.number }}" --remove-label "$APPROVAL_LABEL" || true
+
     - name: Comment teardown
       if: github.event.action == 'closed'
       shell: bash
@@ -84,6 +108,14 @@ runs:
     #   - HEAD_OWNER: who owns the head repository. For same-repo PRs this is
     #     the org itself; for forks the fork owner must be a member, so an
     #     outsider-controlled fork is never built regardless of who opened it.
+    # Maintainer approval (optional, `approval-label`): an org member labels a
+    # same-repo PR whose author is not a member, typically an org-owned
+    # GitHub App bot. This replaces the AUTHOR check only:
+    #   - SENDER (= ACTOR on a `labeled` event) must be a member, so the
+    #     approval comes from a person in the org, not the bot.
+    #   - HEAD_OWNER must be the org: same-repo branches only, never forks.
+    #   - The build is pinned to the head SHA in this event's payload, and the
+    #     label is consumed above, so later pushes need a fresh approval.
     # GITHUB_TOKEN cannot read org membership, so this needs an App token.
     # Safe on fork PRs: no fork code has been checked out or run at this
     # point, so the App token is only ever handled by trusted steps.
@@ -105,11 +137,26 @@ runs:
         ACTOR: ${{ github.actor }}
         HEAD_OWNER: ${{ github.event.pull_request.head.repo.owner.login }}
         ORG: ${{ github.repository_owner }}
+        APPROVAL_LABEL: ${{ inputs.approval-label }}
+        EVENT_ACTION: ${{ github.event.action }}
+        LABEL_NAME: ${{ github.event.label.name }}
+        SENDER: ${{ github.event.sender.login }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       run: |
         # 204 = member (including private membership), 404 = not a member.
         is_member() {
           gh api "/orgs/${ORG}/members/$1" --silent 2>/dev/null
         }
+
+        if [ -n "$APPROVAL_LABEL" ] && [ "$EVENT_ACTION" = "labeled" ] \
+          && [ "$LABEL_NAME" = "$APPROVAL_LABEL" ]; then
+          if [ "$HEAD_OWNER" = "$ORG" ] && is_member "$SENDER"; then
+            echo "::notice::${SENDER} approved a preview of ${HEAD_SHA} - preview enabled"
+            echo "member=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::notice::${APPROVAL_LABEL} applied by ${SENDER} to a PR from ${HEAD_OWNER} - approval ignored"
+        fi
 
         trusted=true
         for login in "$AUTHOR" "$ACTOR"; do
