@@ -5,8 +5,10 @@
 #
 # Composite actions cannot declare triggers, permissions, or concurrency.
 # The caller workflow must run on `pull_request_target` (types: opened,
-# synchronize, reopened, closed) with `contents: read`, `id-token: write`,
-# `pull-requests: write`, and a per-PR concurrency group.
+# synchronize, reopened, closed, plus `labeled` when `approval-label` is set,
+# with a job-level `if` that ignores every other label) with
+# `contents: read`, `id-token: write`, `pull-requests: write`, and a per-PR
+# concurrency group.
 #
 # Caller contract - the trust boundary now lives in the caller workflow:
 #   - This step MUST run before any step that checks out or executes PR code.
