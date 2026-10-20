@@ -154,6 +154,7 @@ jobs:
 When a member applies the label, the gate skips the author check and builds the head SHA in that `labeled` event. Constraints:
 
 - **Same-repo only.** The head repo must be the calling repo itself; forks (including org-owned ones) and other org repos cannot be approved this way.
+- **Open PRs only.** The gate checks the PR's current state, so labelling a closed PR (or a run that starts after the PR closed) builds nothing.
 - **Member approval.** Whoever applied the label must be an org member (applying labels already needs triage access).
 - **One commit per approval.** The build is pinned to the head SHA in the `labeled` payload, and that SHA must still be the PR head. The gate consumes the label on every run, and the approval only counts if the gate itself removed it, so a later push (`synchronize`), a rerun of an old approval run, or a failed removal all fail closed until a member re-applies it.
 

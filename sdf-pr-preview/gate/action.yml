@@ -160,6 +160,16 @@ runs:
           gh api "/orgs/${ORG}/members/$1" --silent 2>/dev/null
         }
 
+        # Current PR state, not the payload: a run can start after the PR
+        # closed, or be triggered by labelling an already-closed PR.
+        pr_live="$(GH_TOKEN="$REPO_TOKEN" gh api "repos/${REPO}/pulls/${PR_NUMBER}" -q '.state + " " + .head.sha')" || pr_live=""
+        if [ "${pr_live%% *}" != "open" ]; then
+          echo "::notice::PR #${PR_NUMBER} is not open - preview skipped"
+          echo "member=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        live_head="${pr_live#* }"
+
         if [ -n "$APPROVAL_LABEL" ] && [ "$EVENT_ACTION" = "labeled" ] \
           && [ "$LABEL_NAME" = "$APPROVAL_LABEL" ]; then
           approved=false
@@ -168,7 +178,7 @@ runs:
             echo "::notice::${APPROVAL_LABEL} could not be consumed (already removed, or rerun of an old approval) - approval ignored"
           elif [ "$HEAD_REPO" != "$REPO" ]; then
             echo "::notice::${APPROVAL_LABEL} applied to a PR from ${HEAD_REPO}, not ${REPO} - approval ignored"
-          elif [ "$(GH_TOKEN="$REPO_TOKEN" gh api "repos/${REPO}/pulls/${PR_NUMBER}" -q .head.sha)" != "$HEAD_SHA" ]; then
+          elif [ "$live_head" != "$HEAD_SHA" ]; then
             echo "::notice::head moved past ${HEAD_SHA} since it was approved - approval ignored"
           elif ! is_member "$SENDER"; then
             echo "::notice::${SENDER} is not a member of ${ORG} - approval ignored"
