@@ -14,7 +14,7 @@ The flow is two actions that bracket your build, so your repo owns how its image
 
 1. **Withdraw the signal** (`gate`). On every event, the `preview` label is removed first. The ApplicationSet derives `head_sha` from the live PR, so a label left over from a previous build would otherwise let it deploy `pr-<number>-<new-sha>` before that image is pushed — and point at a nonexistent tag for as long as that commit stays the head if the build fails. Removing it up front makes the signal fail closed: the label is present only while the images it implies exist. The tradeoff is that the preview goes dark while a rebuild is in flight.
 2. **PR closed?** (`gate`) The removal above is the teardown; a "torn down" comment is added and `member` is `false`, so nothing else runs.
-3. **Org-membership gate** (`gate`). A GitHub App token checks that the PR author, the actor who triggered the run, and the head-repo owner are all members of the org (`GITHUB_TOKEN` cannot read org membership). The gate applies to every PR — branch or fork — so an org member's fork PR gets a preview while an outside contributor's does not. Non-member PRs stop here: the up-front removal already revoked any stale or hand-applied label, so CI stays authoritative.
+3. **Org-membership gate** (`gate`). A GitHub App token checks that the PR author, the actor who triggered the run, and the head-repo owner are all members of the org (`GITHUB_TOKEN` cannot read org membership). The gate applies to every PR — branch or fork — so an org member's fork PR gets a preview while an outside contributor's does not. Non-member PRs stop here, unless a member approves one build of a same-repo PR with the optional approval label (see [Maintainer-approved previews](#maintainer-approved-previews)). The up-front removal already revoked any stale or hand-applied `preview` label, so CI stays authoritative.
 4. **Build and push** (your workflow). Check out the PR head SHA — not the synthetic merge commit — build, and push each image as `<registry>/<repository>:<image-tag>`, where `image-tag` is `pr-<number>-<head-sha>`.
 5. **Publish** (`publish`). Confirm every listed image exists in the registry (`docker manifest inspect`), then — and only then — restore the `preview` label and comment `https://<preview-host>` on the PR. A failed or cancelled build, a miswired build step, or a mismatched tag all leave the label off, never a broken preview.
 
@@ -113,10 +113,11 @@ The trust boundary lives in your workflow, so these are not optional:
 |---|---|---|
 | `app-id` | yes | GitHub App ID used to check org membership |
 | `private-key` | yes | Private key of that GitHub App |
+| `approval-label` | no | Label an org member can apply to a same-repo PR to approve one preview build when the author is not a member (e.g. an org-owned App bot). See [Maintainer-approved previews](#maintainer-approved-previews). Default: disabled |
 
 | Output | Description |
 |---|---|
-| `member` | `'true'` when the event is not `closed` and the PR author, triggering actor, and head-repo owner are all org members; otherwise `'false'` |
+| `member` | `'true'` when the event is not `closed` and either the PR author, triggering actor, and head-repo owner are all org members, or an org member applied `approval-label` to a same-repo PR; otherwise `'false'` |
 | `image-tag` | `pr-<number>-<head-sha>` — the tag every preview image must carry |
 
 ### `sdf-pr-preview/publish`
@@ -125,6 +126,39 @@ The trust boundary lives in your workflow, so these are not optional:
 |---|---|---|
 | `images` | yes | Fully qualified image references (`registry/repository:tag`), one per line; every one must exist before the label is applied |
 | `preview-host` | yes | Hostname the preview will be served on; commented on the PR as `https://<preview-host>` |
+
+## Maintainer-approved previews
+
+PRs opened by a GitHub App (e.g. a triage bot pushing to same-repo branches) fail the membership gate, because the App is not an org member. Setting `approval-label` lets a maintainer approve a preview by hand instead of trusting the App automatically:
+
+```yaml
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, closed, labeled]
+
+jobs:
+  preview:
+    # Required: without it, adding any label reruns the gate, which withdraws
+    # the `preview` label and takes a live preview down.
+    if: github.event.action != 'labeled' || github.event.label.name == 'preview-approved'
+    steps:
+      - id: gate
+        uses: stellar/actions/sdf-pr-preview/gate@main
+        with:
+          app-id: ${{ vars.PREVIEW_BOT_APP_ID }}
+          private-key: ${{ secrets.PREVIEW_BOT_PRIVATE_KEY }}
+          approval-label: preview-approved
+      # ...build and publish exactly as above
+```
+
+When a member applies the label, the gate skips the author check and builds the head SHA in that `labeled` event. Constraints:
+
+- **Same-repo only.** The head repo must be the calling repo itself; forks (including org-owned ones) and other org repos cannot be approved this way.
+- **Open PRs only.** The gate checks the PR's current state, so labelling a closed PR (or a run that starts after the PR closed) builds nothing.
+- **Member approval.** Whoever applied the label must be an org member (applying labels already needs triage access).
+- **One commit per approval.** The build is pinned to the head SHA in the `labeled` payload, and that SHA must still be the PR head. The gate consumes the label on every run, and the approval only counts if the gate itself removed it, so a later push (`synchronize`), a rerun of an old approval run, or a failed removal all fail closed until a member re-applies it.
+
+The approval label must exist in the repo, like `preview`.
 
 ## Prerequisites
 
@@ -138,7 +172,7 @@ The trust boundary lives in your workflow, so these are not optional:
 The workflow runs on `pull_request_target`, which executes in the base repo's context with real secrets and write permissions — including for fork PRs. This is safe because:
 
 - No fork code is checked out or executed before the org-membership gate; the App token is only ever handled by trusted steps inside `gate`.
-- The PR head is checked out only for PRs whose author, actor, and head-repo owner are all org members, and only to build it.
+- The PR head is checked out only for PRs whose author, actor, and head-repo owner are all org members, or, with `approval-label` set, for a same-repo PR head that an org member approved by label for that exact commit. Either way, only to build it.
 - The workflow file and the actions are always taken from the base repo / `stellar/actions@main`, so a fork cannot alter the gate for its own run.
 - The guards described in the caller contract are what keep this true. Building before `gate`, or leaving a post-gate step unguarded, executes untrusted code in a privileged job — do not do it.
 
