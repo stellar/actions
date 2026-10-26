@@ -66,12 +66,19 @@ runs:
         GITHUB_REPO: ${{ github.repository }}
       run: |
         # Repos with immutable OIDC subjects send "owner@id/repo@id" instead of "owner/repo", so tag with what the token carries.
-        PAYLOAD=$(curl -sSf -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" \
-          | jq -r .value | cut -d. -f2 | tr '_-' '/+')
-        while [ $(( ${#PAYLOAD} % 4 )) -ne 0 ]; do PAYLOAD="${PAYLOAD}="; done
-        SUB=$(printf '%s' "$PAYLOAD" | base64 -d | jq -r .sub)
+        oidc_sub() {
+          local payload
+          payload=$(curl -sSf --retry 3 --retry-all-errors -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" \
+            | jq -r .value | cut -d. -f2 | tr '_-' '/+') || return 1
+          while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="${payload}="; done
+          printf '%s' "$payload" | base64 -d | jq -r '.sub // empty'
+        }
+        SUB=$(oidc_sub) || SUB=""
         REPO_TAG="${SUB#repo:}"
         REPO_TAG="${REPO_TAG%%:*}"
+        if [ -z "$REPO_TAG" ]; then
+          echo "::warning::Could not read the OIDC sub claim; tagging new ECR repositories with ${GITHUB_REPO}"
+        fi
 
         SCRIPT_DIR="${RUNNER_TEMP}/ecr-push-bin"
         mkdir -p "$SCRIPT_DIR"
