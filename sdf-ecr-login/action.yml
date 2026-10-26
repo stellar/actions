@@ -65,6 +65,14 @@ runs:
         AWS_REGION_INPUT: "us-east-1"
         GITHUB_REPO: ${{ github.repository }}
       run: |
+        # Repos with immutable OIDC subjects send "owner@id/repo@id" instead of "owner/repo", so tag with what the token carries.
+        PAYLOAD=$(curl -sSf -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" \
+          | jq -r .value | cut -d. -f2 | tr '_-' '/+')
+        while [ $(( ${#PAYLOAD} % 4 )) -ne 0 ]; do PAYLOAD="${PAYLOAD}="; done
+        SUB=$(printf '%s' "$PAYLOAD" | base64 -d | jq -r .sub)
+        REPO_TAG="${SUB#repo:}"
+        REPO_TAG="${REPO_TAG%%:*}"
+
         SCRIPT_DIR="${RUNNER_TEMP}/ecr-push-bin"
         mkdir -p "$SCRIPT_DIR"
         cat > "$SCRIPT_DIR/ecr-push" << 'SCRIPT'
@@ -113,4 +121,4 @@ runs:
         chmod +x "$SCRIPT_DIR/ecr-push"
         echo "$SCRIPT_DIR" >> "$GITHUB_PATH"
         echo "ECR_PUSH_REGION=${AWS_REGION_INPUT}" >> "$GITHUB_ENV"
-        echo "ECR_PUSH_REPO_TAG=${GITHUB_REPO}" >> "$GITHUB_ENV"
+        echo "ECR_PUSH_REPO_TAG=${REPO_TAG:-$GITHUB_REPO}" >> "$GITHUB_ENV"

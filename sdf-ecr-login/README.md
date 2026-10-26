@@ -52,7 +52,7 @@ ecr-push <image:tag>
 
 It will:
 1. Extract the repository name from the image URI
-2. Create the ECR repository if it doesn't exist, tagging it with `Repository: <owner/repo>` (derived from `github.repository`)
+2. Create the ECR repository if it doesn't exist, tagging it with `Repository: <owner/repo>`, taken from the OIDC token's `sub` claim (`<owner@id/repo@id>` for repos that use immutable subjects)
 3. Push the image via `docker push`
 
 **Note:** `ecr-push` only supports private ECR repositories. Public ECR repositories are managed via Terraform and must be created separately.
@@ -73,6 +73,6 @@ The action assumes `github-actions-ecr` directly with the GitHub OIDC token. The
 
 
 ## Important security note:
-1. ECR repositories created by `ecr-push` are automatically tagged with `Repository: <owner/repo>` (e.g., `stellar/my-service`). The IAM policy ensures only workflows from the matching GitHub repository can push images, as the tag must match the caller's `github.repository`.
+1. ECR repositories created by `ecr-push` are automatically tagged with `Repository: <owner/repo>` (e.g., `stellar/my-service`). The IAM policy ensures only workflows from the matching GitHub repository can push images, as the tag must match the repo part of the caller's OIDC `sub` claim.
 
 2. Always include a `permissions` section with `id-token: write` and `contents: read` to enable OIDC authentication. These permissions are required for secure AWS authentication and access to repository contents.
