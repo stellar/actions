@@ -52,6 +52,7 @@ jobs:
 | [rust-check-git-rev-deps] | Workflow | Check that git rev dependencies do not reference revisions likely to be orphaned. |
 | [sdf-ecr-login] | Action | Abstraction for SDF's AWS ECR login steps. |
 | [sdf-pr-preview] | Action | Builds and publishes an ArgoCD-deployed preview environment for org-member PRs. |
+| [confluence-publish] | Action | Publishes a folder of Markdown to Confluence, one way, with the token read from AWS through OIDC. |
 
 #### Releasing / Publishing
 
@@ -83,4 +84,5 @@ workflows.
 [disk-cleanup]: ./disk-cleanup
 [sdf-ecr-login]: ./sdf-ecr-login/action.yml
 [sdf-pr-preview]: ./sdf-pr-preview
+[confluence-publish]: ./confluence-publish
 [README-rust-release.md]: README-rust-release.md

@@ -1,0 +1,33 @@
+name: confluence-publish
+
+on:
+  push:
+    branches: [main]
+    paths: ["confluence-publish/**", ".github/workflows/confluence-publish.yml"]
+  pull_request:
+    paths: ["confluence-publish/**", ".github/workflows/confluence-publish.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: confluence-publish
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv run pytest -q
+      - run: uv run confluence-publish tests/fixtures/docs --check
+
+  # Runs the action itself in check-only mode, which needs no credentials.
+  check-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: ./confluence-publish
+        with:
+          folder: confluence-publish/tests/fixtures/docs
+          check-only: "true"

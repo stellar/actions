@@ -1,0 +1,27 @@
+[project]
+name = "confluence-publish"
+version = "0.1.0"
+description = "Publish a folder of Markdown from Git to Confluence Cloud, one way"
+readme = "README.md"
+authors = [{ name = "Stellar Development Foundation" }]
+requires-python = ">=3.12"
+dependencies = [
+    "markdown-it-py>=4.2.0",
+    "mdit-py-plugins>=0.6.1",
+    "pyyaml>=6.0.3",
+    "requests>=2.34.2",
+]
+
+[project.scripts]
+confluence-publish = "confluence_publish.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+[tool.pytest.ini_options]
+pythonpath = ["tests"]

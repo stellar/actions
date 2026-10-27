@@ -1,0 +1,101 @@
+name: 'Publish docs to Confluence'
+description: 'Publishes a folder of Markdown from this repo to Confluence Cloud, one way. Reads the Confluence token from AWS Secrets Manager through GitHub OIDC.'
+
+inputs:
+  folder:
+    description: 'Folder of Markdown to publish, relative to the repo root.'
+    required: false
+    default: 'confluence'
+  root-page:
+    description: 'ID of the Confluence page to publish under. Required unless check-only is true.'
+    required: false
+    default: ''
+  title-prefix:
+    description: 'Put in front of every page title, e.g. "Horizon: ".'
+    required: false
+    default: ''
+  on-orphan:
+    description: 'A published page whose file is gone: delete (move to the trash) or keep.'
+    required: false
+    default: 'delete'
+  dry-run:
+    description: 'Show what would change, change nothing (true/false).'
+    required: false
+    default: 'false'
+  adopt-root:
+    description: "Publish the folder's README.md into a root page that has content this publisher did not write (true/false). Needed once."
+    required: false
+    default: 'false'
+  mermaid:
+    description: 'Draw ```mermaid blocks as images (true/false).'
+    required: false
+    default: 'true'
+  check-only:
+    description: 'Only convert the docs and report problems, with no AWS or Confluence access (true/false). For pull requests.'
+    required: false
+    default: 'false'
+  base-url:
+    description: "Confluence API base URL. Scoped tokens only work through Atlassian's gateway."
+    required: false
+    default: 'https://api.atlassian.com/ex/confluence/b10b50fe-b333-4aac-9798-e087d05ae0a8'
+  role-to-assume:
+    description: 'AWS role that can read the Confluence token.'
+    required: false
+    default: 'arn:aws:iam::746476062914:role/github-actions-confluence-publish'
+  secret-id:
+    description: 'Secrets Manager secret holding {"email": ..., "token": ...}.'
+    required: false
+    default: 'confluence-docs-publisher'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+    # Keep in step with RENDERER_ID in src/confluence_publish/mermaid.py.
+    - name: Install mermaid-cli
+      if: inputs.mermaid == 'true'
+      shell: bash
+      run: npm install -g @mermaid-js/mermaid-cli@11.17.0
+
+    - name: Configure AWS credentials via OIDC
+      if: inputs.check-only != 'true'
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+      with:
+        role-to-assume: ${{ inputs.role-to-assume }}
+        aws-region: 'us-east-1'
+        role-session-name: gha-confluence-${{ github.run_id }}-${{ github.run_attempt }}
+
+    - name: Publish
+      shell: bash
+      env:
+        FOLDER: ${{ inputs.folder }}
+        ROOT_PAGE: ${{ inputs.root-page }}
+        CONFLUENCE_TITLE_PREFIX: ${{ inputs.title-prefix }}
+        ON_ORPHAN: ${{ inputs.on-orphan }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        ADOPT_ROOT: ${{ inputs.adopt-root }}
+        MERMAID: ${{ inputs.mermaid }}
+        CHECK_ONLY: ${{ inputs.check-only }}
+        CONFLUENCE_BASE_URL: ${{ inputs.base-url }}
+        SECRET_ID: ${{ inputs.secret-id }}
+      run: |
+        set -euo pipefail
+        args=("$FOLDER" --branch "$GITHUB_REF_NAME" --on-orphan "$ON_ORPHAN")
+        if [ "$MERMAID" = "true" ]; then args+=(--mermaid); fi
+        if [ "$CHECK_ONLY" = "true" ]; then
+          uv run --quiet --project "$GITHUB_ACTION_PATH" confluence-publish "${args[@]}" --check
+          exit 0
+        fi
+        if [ -z "$ROOT_PAGE" ]; then echo "::error::root-page is required to publish"; exit 1; fi
+        args+=(--root-page "$ROOT_PAGE")
+        if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+        if [ "$ADOPT_ROOT" = "true" ]; then args+=(--adopt-root); fi
+        secret=$(aws secretsmanager get-secret-value --secret-id "$SECRET_ID" --query SecretString --output text)
+        CONFLUENCE_EMAIL=$(jq -r .email <<<"$secret")
+        CONFLUENCE_API_TOKEN=$(jq -r .token <<<"$secret")
+        echo "::add-mask::$CONFLUENCE_API_TOKEN"
+        unset secret
+        export CONFLUENCE_EMAIL CONFLUENCE_API_TOKEN
+        uv run --quiet --project "$GITHUB_ACTION_PATH" confluence-publish "${args[@]}"
