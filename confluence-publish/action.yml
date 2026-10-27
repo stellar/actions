@@ -45,7 +45,7 @@ inputs:
   secret-id:
     description: 'Secrets Manager secret holding {"email": ..., "token": ...}.'
     required: false
-    default: 'confluence-docs-publisher'
+    default: 'confluence/docs-publisher'
 
 runs:
   using: 'composite'

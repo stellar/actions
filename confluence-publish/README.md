@@ -51,7 +51,7 @@ To check docs on pull requests without publishing (no credentials needed):
 | `check-only` | `false` | Only convert the docs and report problems. No AWS or Confluence access. |
 | `base-url` | SDF's Confluence, through Atlassian's API gateway | |
 | `role-to-assume` | `arn:aws:iam::746476062914:role/github-actions-confluence-publish` | AWS role that can read the token. |
-| `secret-id` | `confluence-docs-publisher` | Secrets Manager secret holding `{"email": ..., "token": ...}`. |
+| `secret-id` | `confluence/docs-publisher` | Secrets Manager secret holding `{"email": ..., "token": ...}`. |
 
 ## How access works
 
