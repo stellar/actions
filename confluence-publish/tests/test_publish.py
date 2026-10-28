@@ -552,3 +552,9 @@ def test_a_symlink_inside_the_docs_folder_is_fine(docs):
         "# Restart the service (docs-publisher test)\n\n![Same diagram](img/alias.png)\n")
     r = render_all(docs, repo_blob_url=None)["runbooks/restart.md"]
     assert "alias.png" in r.attachments
+
+
+def test_a_symlinked_docs_folder_is_refused(docs, tmp_path):
+    (tmp_path / "docs-link").symlink_to(docs, target_is_directory=True)
+    with pytest.raises(ValueError, match="docs folder is a symlink"):
+        render_all(tmp_path / "docs-link", repo_blob_url=None)

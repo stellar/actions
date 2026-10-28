@@ -22,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false  # nothing here needs git credentials
       - uses: stellar/actions/confluence-publish@main
         with:
           folder: confluence

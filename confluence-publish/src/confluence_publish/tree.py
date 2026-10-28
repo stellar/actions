@@ -114,6 +114,8 @@ def build_tree(root: Path, title_prefix: str = "", root_title: str | None = None
     title_prefix goes in front of every title, so repos sharing a space can
     each have a "Setup" page ("Horizon: Setup", "RPC: Setup").
     """
+    if root.is_symlink():  # checked before resolving, or the link would go unnoticed
+        raise ValueError(f"{root}: the docs folder is a symlink; point at a real folder")
     root = root.resolve()
     _check_links(root)
     nodes: dict[str, Node] = {}
