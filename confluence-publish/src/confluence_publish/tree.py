@@ -8,6 +8,7 @@ becomes that page's content, under the safety rules in sync.py.
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
@@ -92,6 +93,21 @@ def pretty(name: str) -> str:
     return words[:1].upper() + words[1:]
 
 
+def _check_links(root: Path) -> None:
+    """Only publish what is in the docs folder: no symlinks that lead out of it,
+    and no symlinked folders (which could also loop back on themselves)."""
+    for dirpath, dirnames, filenames in os.walk(root):  # does not follow symlinks
+        for name in dirnames + filenames:
+            path = Path(dirpath) / name
+            if not path.is_symlink():
+                continue
+            rel = path.relative_to(root).as_posix()
+            if path.is_dir():
+                raise ValueError(f"{rel}: symlinked folders aren't supported; use a real folder")
+            if not path.resolve().is_relative_to(root):
+                raise ValueError(f"{rel}: links to a file outside the docs folder")
+
+
 def build_tree(root: Path, title_prefix: str = "", root_title: str | None = None) -> dict[str, Node]:
     """Return the nodes keyed by path, parents before children.
 
@@ -99,6 +115,7 @@ def build_tree(root: Path, title_prefix: str = "", root_title: str | None = None
     each have a "Setup" page ("Horizon: Setup", "RPC: Setup").
     """
     root = root.resolve()
+    _check_links(root)
     nodes: dict[str, Node] = {}
 
     def add_folder(folder: Path, parent: str | None) -> None:

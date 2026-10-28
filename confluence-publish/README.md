@@ -84,7 +84,8 @@ repo, add it to that role's trust policy.
 - A page whose file is gone is trashed (`on-orphan: delete`), unless pages this
   repo didn't publish sit under it; then it is kept, so they aren't trashed
   with it.
-- Images are uploaded only from inside `folder`.
+- Only files inside `folder` are published or uploaded: a symlink that leads
+  out of it, or a symlinked folder, is an error.
 
 ## Development
 

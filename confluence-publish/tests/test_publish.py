@@ -533,3 +533,22 @@ def test_an_attachment_removed_by_hand_is_put_back_on_an_unchanged_root(docs):
     fake.calls.clear()
     run(fake, docs, root)
     assert fake.calls == [("upload", root, "diagram.png")]
+
+
+def test_symlinks_out_of_the_docs_folder_are_refused(docs):
+    (docs.parent / "outside.md").write_text("# Outside\n")
+    (docs / "linked.md").symlink_to(docs.parent / "outside.md")
+    with pytest.raises(ValueError, match="outside the docs folder"):
+        render_all(docs, repo_blob_url=None)
+    (docs / "linked.md").unlink()
+    (docs / "loop").symlink_to(docs, target_is_directory=True)
+    with pytest.raises(ValueError, match="symlinked folders"):
+        render_all(docs, repo_blob_url=None)
+
+
+def test_a_symlink_inside_the_docs_folder_is_fine(docs):
+    (docs / "runbooks/img/alias.png").symlink_to(docs / "runbooks/img/diagram.png")
+    (docs / "runbooks/restart.md").write_text(
+        "# Restart the service (docs-publisher test)\n\n![Same diagram](img/alias.png)\n")
+    r = render_all(docs, repo_blob_url=None)["runbooks/restart.md"]
+    assert "alias.png" in r.attachments
