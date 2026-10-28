@@ -142,6 +142,10 @@ def make_renderer(ctx: Context) -> MarkdownIt:
         if _is_relative(src):
             path, _ = _resolve(ctx, src)
             file = (ctx.docs_root / path)
+            # Only files in the docs folder are uploaded, never other repo files
+            # reached through "../" or a symlink.
+            if not file.resolve().is_relative_to(ctx.docs_root):
+                raise ValueError(f"{ctx.source}: image {src!r} is outside the docs folder")
             if not file.is_file():
                 raise ValueError(f"{ctx.source}: image {src!r} not found at {path}")
             name = file.name

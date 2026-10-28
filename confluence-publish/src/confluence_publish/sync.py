@@ -144,11 +144,20 @@ class Publisher:
         plan = Plan()
         orphans = {k: m for k, m in managed.items() if k not in rendered}
         orphan_by_title = {m.title.lower(): m for m in orphans.values()}
+        managed_by_title = {m.title.lower(): m for m in managed.values()}
         for key, r in rendered.items():
             if key == ROOT_KEY:
                 continue  # planned by plan_root
             m = managed.get(key)
             if m:
+                # Pages are updated one at a time, so a new title must be free before
+                # the run starts (a swap would fail half way through).
+                holder = managed_by_title.get(r.node.title.lower())
+                if holder and holder.id != m.id:
+                    raise TitleError(
+                        f"{r.node.file} changes its title to {r.node.title!r}, which the page "
+                        f"for {holder.key} still has. Swap or reuse titles in two commits.",
+                        r.node.file)
                 same = m.prop["value"].get("hash") == r.hash
                 plan.steps.append(Step("unchanged" if same else "update", key, r.node.title, m.id))
                 continue
@@ -181,9 +190,27 @@ class Publisher:
                     f"never changes pages outside its root. To fix, {r.node.how_to_retitle()}.",
                     r.node.file)
             plan.steps.append(Step("create", key, r.node.title))
+        # Trashing a page trashes the pages under it. Pages this run keeps are moved
+        # out first; anything else under an orphan (made by hand, or another repo's)
+        # means the orphan is kept instead.
+        staying = {s.page_id for s in plan.steps if s.page_id}
+        going = {o.id for o in orphans.values()}
+        children: dict[str, list[str]] = {}
+        for pid, parent in getattr(self, "subtree", {}).items():
+            children.setdefault(parent, []).append(pid)
+
+        def holds_others(pid: str) -> bool:
+            return any(c not in staying and (c not in going or holds_others(c))
+                       for c in children.get(pid, []))
+
         for o in sorted(orphans.values(), key=lambda m: -m.depth):
-            plan.steps.append(Step("delete" if on_orphan == "delete" else "keep", o.key, o.title,
-                                   o.id, "source file is gone"))
+            if on_orphan != "delete":
+                plan.steps.append(Step("keep", o.key, o.title, o.id, "source file is gone"))
+            elif holds_others(o.id):
+                plan.steps.append(Step("keep", o.key, o.title, o.id, "source file is gone, but "
+                                       "it has pages under it that this repo did not publish"))
+            else:
+                plan.steps.append(Step("delete", o.key, o.title, o.id, "source file is gone"))
         return plan
 
     def plan_root(self, r: Rendered | None, root: dict, space_id: str,
@@ -224,9 +251,14 @@ class Publisher:
 
     def apply_root(self, step: Step | None, r: Rendered | None, root: dict, *,
                    commit: str) -> None:
-        if not step or step.action == "unchanged":
+        if not step:
             return
         prop = self.c.get_property(self.root, PROPERTY_KEY)
+        if step.action == "unchanged":
+            # Content is current; still put back images removed or damaged since.
+            if r.attachments:
+                self._sync_attachments(self.root, r, prop["value"].get("attachments", {}))
+            return
         self.c.update_page(self.root, title=r.node.title, parent_id=None, body=r.body,
                            version=root["version"],
                            message=f"Published from {self.repo}" + (f"@{commit[:12]}" if commit else ""))
@@ -269,6 +301,9 @@ class Publisher:
                 pid = m.id
                 if step.action == "unchanged" and m.parent_id == parent_id:
                     ids[step.key] = pid
+                    # Content is current; still put back images removed or damaged since.
+                    if r.attachments:
+                        self._sync_attachments(pid, r, m.prop["value"].get("attachments", {}))
                     continue
                 self.c.update_page(pid, title=r.node.title, parent_id=parent_id, body=r.body,
                                    version=m.version, message=message)
@@ -286,7 +321,7 @@ class Publisher:
                 self.c.delete_page(step.page_id)
                 self.log(f"deleted  {step.key} (page {step.page_id})")
             elif step.action == "keep":
-                self.log(f"kept     {step.key} (page {step.page_id}): source file is gone")
+                self.log(f"kept     {step.key} (page {step.page_id}): {step.reason}")
 
     def _sync_attachments(self, page_id: str, r: Rendered, old: dict[str, str]) -> None:
         if not r.attachments and not old:

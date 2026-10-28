@@ -459,3 +459,77 @@ def test_link_to_the_root_readme_points_at_the_root_page(docs):
     (docs / "guides/back.md").write_text("# Back link\n\n[home](../README.md) and [also](..)\n")
     pages = render_all(docs, repo_blob_url=None, root_title="Horizon")
     assert pages["guides/back.md"].body.count('ri:content-title="Horizon"') == 2
+
+
+def test_an_image_outside_the_docs_folder_is_refused(docs):
+    (docs.parent / "secret.png").write_bytes(b"not for confluence")
+    (docs / "getting-started.md").write_text("# Getting started (docs-publisher test)\n\n![x](../secret.png)\n")
+    with pytest.raises(ValueError, match="outside the docs folder"):
+        render_all(docs, repo_blob_url=None)
+    (docs / "getting-started.md").write_text("# Getting started (docs-publisher test)\n\n![x](link.png)\n")
+    (docs / "link.png").symlink_to(docs.parent / "secret.png")
+    with pytest.raises(ValueError, match="outside the docs folder"):
+        render_all(docs, repo_blob_url=None)
+
+
+def test_a_title_swap_fails_before_changing_anything(docs):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    run(fake, docs, root)
+    (docs / "guides/setup.md").write_text("# Restart the service (docs-publisher test)\n")
+    (docs / "runbooks/restart.md").write_text("# Setup guide (docs-publisher test)\n")
+    fake.calls.clear()
+    with pytest.raises(ValueError, match="two commits") as e:
+        run(fake, docs, root)
+    assert fake.calls == []
+    assert e.value.file in ("guides/setup.md", "runbooks/restart.md")
+
+
+def test_an_orphan_with_hand_made_pages_under_it_is_kept(docs):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    run(fake, docs, root)
+    guides = live(fake)["Guides"]["id"]
+    setup = live(fake)["Setup guide (docs-publisher test)"]["id"]
+    note = fake.add("Hand-written notes", parent=setup)
+    (docs / "guides/setup.md").unlink()
+    (docs / "getting-started.md").write_text("# Getting started (docs-publisher test)\n")
+    plan = run(fake, docs, root, on_orphan="delete")
+    kept = {s.page_id for s in plan.steps if s.action == "keep"}
+    assert {guides, setup} <= kept  # the note is under both
+    assert not any(fake.pages[p]["trashed"] for p in (guides, setup, note))
+
+
+def test_an_orphan_whose_children_all_go_is_trashed(docs):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    run(fake, docs, root)
+    guides = live(fake)["Guides"]["id"]
+    setup = live(fake)["Setup guide (docs-publisher test)"]["id"]
+    shutil.rmtree(docs / "guides")
+    (docs / "getting-started.md").write_text("# Getting started (docs-publisher test)\n")
+    run(fake, docs, root, on_orphan="delete")
+    assert fake.pages[guides]["trashed"] and fake.pages[setup]["trashed"]
+
+
+def test_an_attachment_removed_by_hand_is_put_back_on_an_unchanged_page(docs):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    run(fake, docs, root)
+    pid = _restart_page(fake)
+    del fake.files[pid]["diagram.png"]
+    fake.calls.clear()
+    assert run(fake, docs, root).summary() == {"unchanged": 5}
+    assert fake.calls == [("upload", pid, "diagram.png")]
+
+
+def test_an_attachment_removed_by_hand_is_put_back_on_an_unchanged_root(docs):
+    fake = FakeConfluence()
+    root = fake.add("Horizon")
+    (docs / "README.md").write_text(ROOT_README + "\n![Architecture](runbooks/img/diagram.png)\n")
+    (docs / "runbooks/restart.md").write_text("# Restart the service (docs-publisher test)\n")
+    run(fake, docs, root)
+    del fake.files[root]["diagram.png"]
+    fake.calls.clear()
+    run(fake, docs, root)
+    assert fake.calls == [("upload", root, "diagram.png")]

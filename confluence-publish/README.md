@@ -78,8 +78,13 @@ repo, add it to that role's trust policy.
   root are left alone, unless one has the same title as a doc, in which case
   the doc is published into it. A title clash with a page outside the root
   fails the run before anything changes, and the error is shown on the file.
-- Unchanged pages are not re-saved. Moving or renaming a file keeps the same
-  page (same ID and URL) as long as its title stays the same.
+- Unchanged pages are not re-saved, but their images are checked and put back
+  if they were removed. Moving or renaming a file keeps the same page (same ID
+  and URL) as long as its title stays the same.
+- A page whose file is gone is trashed (`on-orphan: delete`), unless pages this
+  repo didn't publish sit under it; then it is kept, so they aren't trashed
+  with it.
+- Images are uploaded only from inside `folder`.
 
 ## Development
 
