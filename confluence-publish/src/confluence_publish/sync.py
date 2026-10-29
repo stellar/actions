@@ -106,10 +106,12 @@ def render_all(docs: Path, *, repo_blob_url: str | None, mermaid=None,
 
 
 class Publisher:
-    def __init__(self, client, *, root_page_id: str, repo: str, log=print):
+    def __init__(self, client, *, root_page_id: str, repo: str, editors_group: str = "",
+                 log=print):
         self.c = client
         self.root = root_page_id
         self.repo = repo  # e.g. "octocat/docs"; pages from another repo are left alone
+        self.editors_group = editors_group  # pages this run creates are editable only by it
         self.log = log
 
     # -- reading what is there ----------------------------------------------
@@ -288,6 +290,8 @@ class Publisher:
                 prop = self.c.set_property(pid, PROPERTY_KEY, {
                     "repo": self.repo, "key": step.key, "hash": "", "attachments": {},
                     "commit": commit}, None)
+                if self.editors_group:
+                    self.c.restrict_edits(pid, self.editors_group)
                 self.log(f"created  {step.key} -> page {pid}")
             elif step.action == "take-over":
                 pid = step.page_id
@@ -305,6 +309,9 @@ class Publisher:
                     if r.attachments:
                         self._sync_attachments(pid, r, m.prop["value"].get("attachments", {}))
                     continue
+                if self.editors_group and m.prop["value"].get("hash") == "":
+                    # A create that died before finishing, maybe before its restriction.
+                    self.c.restrict_edits(pid, self.editors_group)
                 self.c.update_page(pid, title=r.node.title, parent_id=parent_id, body=r.body,
                                    version=m.version, message=message)
                 prop = m.prop
@@ -357,11 +364,13 @@ def _is_blank(storage: str) -> bool:
 
 def publish(client, docs: Path, *, root_page_id: str, repo: str, repo_blob_url: str | None,
             dry_run: bool, on_orphan: str = "keep", commit: str = "", log=print,
-            mermaid=None, title_prefix: str = "", adopt_root: bool = False) -> Plan:
+            mermaid=None, title_prefix: str = "", adopt_root: bool = False,
+            editors_group: str = "") -> Plan:
     root = client.get_page(root_page_id)
     rendered = render_all(docs, repo_blob_url=repo_blob_url, mermaid=mermaid,
                           title_prefix=title_prefix, root_title=root["title"])
-    pub = Publisher(client, root_page_id=root_page_id, repo=repo, log=log)
+    pub = Publisher(client, root_page_id=root_page_id, repo=repo, editors_group=editors_group,
+                    log=log)
     managed = pub.discover()
     root_step = pub.plan_root(rendered.get(ROOT_KEY), root, root["spaceId"], adopt_root)
     plan = pub.plan(rendered, managed, root["spaceId"], on_orphan)

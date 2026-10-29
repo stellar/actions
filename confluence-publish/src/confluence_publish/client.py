@@ -30,6 +30,7 @@ class Confluence:
         self.http.auth = (email, token)
         self.http.headers.update({"Accept": "application/json"})
         self.retries = retries
+        self._group_ids: dict[str, str] = {}
 
     # -- plumbing -----------------------------------------------------------
 
@@ -109,6 +110,21 @@ class Confluence:
 
     def delete_page(self, page_id: str) -> None:
         self._call("DELETE", f"/wiki/api/v2/pages/{page_id}")  # moves it to the trash
+
+    # -- restrictions (no v2 endpoint, so v1) ---------------------------------
+
+    def restrict_edits(self, page_id: str, group: str) -> None:
+        """Let only members of `group` edit the page. Viewing is unchanged, and
+        space admins can still lift the restriction."""
+        if group not in self._group_ids:
+            # The picker matches part of the name, so pick out the exact one.
+            matches = [g["id"] for g in self._paged("/wiki/rest/api/group/picker", {"query": group})
+                       if g["name"] == group]
+            if not matches:
+                raise ConfluenceError(f"no Confluence group named {group!r}")
+            self._group_ids[group] = matches[0]
+        self._call("PUT", f"/wiki/rest/api/content/{page_id}/restriction"
+                          f"/byOperation/update/byGroupId/{self._group_ids[group]}")
 
     # -- content properties: where the publisher keeps its bookkeeping --------
 

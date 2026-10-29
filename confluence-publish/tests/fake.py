@@ -86,6 +86,15 @@ class FakeConfluence:
         self.calls.append(("delete_attachment", page_id, name))
         del self.files[page_id][name]
 
+    # Set to True to make restricting a page fail, as if the account lacked the permission.
+    break_restrictions = False
+
+    def restrict_edits(self, page_id, group):
+        self.calls.append(("restrict", page_id, group))
+        if self.break_restrictions:
+            raise RuntimeError("restriction refused")
+        self.pages[page_id]["editors"] = group
+
     # Set to True to make uploads store an empty file, like the bug seen on a real site.
     break_uploads = False
 

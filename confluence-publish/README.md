@@ -49,6 +49,7 @@ To check docs on pull requests without publishing (no credentials needed):
 | `on-orphan` | `delete` | A page whose file is gone: `delete` (move to the trash) or `keep`. |
 | `dry-run` | `false` | Show what would change, change nothing. |
 | `adopt-root` | `false` | Publish the folder's `README.md` into a root page that has content this publisher did not write. Needed once. |
+| `editors-group` | `confluence-docs-publisher` | Only this Confluence group may edit the pages the publisher creates. The service account must be in it. Empty turns this off. |
 | `mermaid` | `true` | Draw ` ```mermaid ` blocks as images. |
 | `check-only` | `false` | Only convert the docs and report problems. No AWS or Confluence access. |
 | `base-url` | SDF's Confluence, through Atlassian's API gateway | |
@@ -62,6 +63,14 @@ signs in to AWS with the job's GitHub OIDC token and reads the secret for the
 publish step only. The AWS role (in `stellar/terraform`, `aws/sdf/iam`) trusts
 only the default branch of the repos listed on it, so to publish from a new
 repo, add it to that role's trust policy.
+
+Pages the publisher creates are restricted so only `editors-group` can edit
+them; anyone who can see the space can still read and comment on them. For
+this the service account must be in that group and have the space's
+"Restrictions: Add/Delete" permission, and a scoped token needs the
+`read:group:confluence` and `write:content.restriction:confluence` scopes. The restriction is set only on pages it
+creates: the root page, and existing pages it takes over, keep their
+permissions. Space admins can always edit a page or lift its restriction.
 
 ## What it does
 
