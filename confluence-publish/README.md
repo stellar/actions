@@ -72,6 +72,11 @@ this the service account must be in that group and have the space's
 creates: the root page, and existing pages it takes over, keep their
 permissions. Space admins can always edit a page or lift its restriction.
 
+If Confluence refuses to set a restriction (the account lacks that permission
+or scope), the run still publishes, with a warning, and leaves those pages
+open. Every later run tries again, so once the permission is granted the
+pages it created are restricted, whether or not they changed.
+
 ## What it does
 
 - Each folder under `folder` becomes a page and each Markdown file a child

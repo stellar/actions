@@ -22,6 +22,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .client import ConfluenceError
 from .convert import Context, heading_anchors, to_storage
 from .tree import ROOT_KEY, Node, TitleError, build_tree
 
@@ -111,7 +112,8 @@ class Publisher:
         self.c = client
         self.root = root_page_id
         self.repo = repo  # e.g. "octocat/docs"; pages from another repo are left alone
-        self.editors_group_id = editors_group_id  # pages this run creates are editable only by it
+        self.editors_group_id = editors_group_id  # pages it creates are editable only by it
+        self.restrictions_refused = False
         self.log = log
 
     # -- reading what is there ----------------------------------------------
@@ -289,9 +291,7 @@ class Publisher:
                 # of this step, the next run still knows the page is ours and redoes it.
                 prop = self.c.set_property(pid, PROPERTY_KEY, {
                     "repo": self.repo, "key": step.key, "hash": "", "attachments": {},
-                    "commit": commit}, None)
-                if self.editors_group_id:
-                    self.c.restrict_edits(pid, self.editors_group_id)
+                    "commit": commit, "created": True}, None)
                 self.log(f"created  {step.key} -> page {pid}")
             elif step.action == "take-over":
                 pid = step.page_id
@@ -308,20 +308,23 @@ class Publisher:
                     # Content is current; still put back images removed or damaged since.
                     if r.attachments:
                         self._sync_attachments(pid, r, m.prop["value"].get("attachments", {}))
+                    if self._restrict(pid, m.prop["value"]):
+                        self.c.set_property(pid, PROPERTY_KEY,
+                                            {**m.prop["value"], "restricted": True}, m.prop)
                     continue
-                if self.editors_group_id and m.prop["value"].get("hash") == "":
-                    # A create that died before finishing, maybe before its restriction.
-                    self.c.restrict_edits(pid, self.editors_group_id)
                 self.c.update_page(pid, title=r.node.title, parent_id=parent_id, body=r.body,
                                    version=m.version, message=message)
                 prop = m.prop
                 self.log(f"{'moved   ' if step.action == 'unchanged' else step.action + ' ':9}{step.key} -> page {pid}")
             ids[step.key] = pid
+            old = (prop or {}).get("value", {}) if step.action != "take-over" else {}
             self._sync_attachments(pid, r, (prop or {}).get("value", {}).get("attachments", {}))
+            restricted = self._restrict(pid, old) or old.get("restricted", False)
             # Written last, so a run that dies half way redoes this page next time.
             self.c.set_property(pid, PROPERTY_KEY, {
                 "repo": self.repo, "key": step.key, "hash": r.hash,
-                "attachments": r.attachment_hashes, "commit": commit}, prop)
+                "attachments": r.attachment_hashes, "commit": commit,
+                "created": old.get("created", False), "restricted": restricted}, prop)
 
         for step in plan.steps:
             if step.action == "delete":
@@ -329,6 +332,30 @@ class Publisher:
                 self.log(f"deleted  {step.key} (page {step.page_id})")
             elif step.action == "keep":
                 self.log(f"kept     {step.key} (page {step.page_id}): {step.reason}")
+
+    def _restrict(self, page_id: str, mark: dict) -> bool:
+        """Restrict editing on a page this repo created and hasn't restricted yet.
+
+        Returns True once it is restricted. If Confluence refuses (the account can't
+        set restrictions yet), warns once, leaves the page open and tries again next run.
+        """
+        if (not self.editors_group_id or self.restrictions_refused
+                or not mark.get("created") or mark.get("restricted")):
+            return False
+        try:
+            self.c.restrict_edits(page_id, self.editors_group_id)
+        except ConfluenceError as e:
+            if e.status not in (401, 403):
+                raise
+            self.restrictions_refused = True
+            self.log(f"::warning title=Pages not restricted::Confluence refused to restrict "
+                     f"editing (HTTP {e.status}). New pages stay editable by anyone who can "
+                     "edit the space; the next run tries again. The account needs the space's "
+                     "'Restrictions: Add/Delete' permission and the "
+                     "write:content.restriction:confluence scope.")
+            return False
+        self.log(f"restricted editing on page {page_id}")
+        return True
 
     def _sync_attachments(self, page_id: str, r: Rendered, old: dict[str, str]) -> None:
         if not r.attachments and not old:

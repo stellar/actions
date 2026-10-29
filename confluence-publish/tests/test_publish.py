@@ -582,14 +582,31 @@ def test_no_editors_group_id_restricts_nothing(docs):
     assert not [c for c in fake.calls if c[0] == "restrict"]
 
 
-def test_a_failed_restriction_is_redone_next_run(docs):
+def test_a_refused_restriction_warns_and_is_retried_once_allowed(docs):
     fake = FakeConfluence()
     root = fake.add("Parent page")
+    logs = []
     fake.break_restrictions = True
-    with pytest.raises(RuntimeError):
-        run(fake, docs, root, editors_group_id="g-1")
-    [first] = [p for p in live(fake).values() if p["id"] != root]
-    assert "editors" not in first
+    publish(fake, docs, root_page_id=root, repo=REPO, dry_run=False, editors_group_id="g-1",
+            repo_blob_url="https://github.com/octo/docs/blob/main/docs", log=logs.append)
+    # The run finishes: every page is published, none restricted, one warning.
+    assert len(live(fake)) == 6 and not any("editors" in p for p in live(fake).values())
+    assert sum("::warning" in line for line in logs) == 1
+    assert len([c for c in fake.calls if c[0] == "restrict"]) == 1  # gives up after one refusal
+    # Once the account may restrict, the next run restricts the unchanged pages.
     fake.break_restrictions = False
+    fake.calls.clear()
+    assert run(fake, docs, root, editors_group_id="g-1").summary() == {"unchanged": 5}
+    created = [p for p in live(fake).values() if p["id"] != root]
+    assert all(p["editors"] == "g-1" for p in created)
+    fake.calls.clear()
     run(fake, docs, root, editors_group_id="g-1")
-    assert fake.pages[first["id"]]["editors"] == "g-1"
+    assert not [c for c in fake.calls if c[0] == "restrict"]
+
+
+def test_turning_restrictions_on_later_restricts_existing_pages(docs):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    run(fake, docs, root)
+    run(fake, docs, root, editors_group_id="g-1")
+    assert all(p.get("editors") == "g-1" for p in live(fake).values() if p["id"] != root)

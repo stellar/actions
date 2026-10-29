@@ -6,6 +6,8 @@ from __future__ import annotations
 import itertools
 from pathlib import Path
 
+from confluence_publish.client import ConfluenceError
+
 
 class FakeConfluence:
     def __init__(self, space_id: str = "S1"):
@@ -92,7 +94,7 @@ class FakeConfluence:
     def restrict_edits(self, page_id, group_id):
         self.calls.append(("restrict", page_id, group_id))
         if self.break_restrictions:
-            raise RuntimeError("restriction refused")
+            raise ConfluenceError("restriction refused", 403)
         self.pages[page_id]["editors"] = group_id
 
     # Set to True to make uploads store an empty file, like the bug seen on a real site.
