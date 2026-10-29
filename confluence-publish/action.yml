@@ -23,9 +23,9 @@ inputs:
     required: false
     default: 'false'
   adopt-root:
-    description: "Publish the folder's README.md into a root page that has content this publisher did not write (true/false). Needed once."
+    description: "Publish the folder's README.md into a root page that has content this publisher did not write (true/false). Set false to refuse to overwrite a hand-written root page."
     required: false
-    default: 'false'
+    default: 'true'
   editors-group-id:
     description: 'ID of the only Confluence group that may edit the pages the publisher creates (default: confluence-docs-publishers). The service account must be in it. Empty leaves pages open to anyone who can edit the space.'
     required: false

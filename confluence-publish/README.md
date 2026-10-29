@@ -48,7 +48,7 @@ To check docs on pull requests without publishing (no credentials needed):
 | `title-prefix` | `""` | Put in front of every page title, e.g. `"Horizon: "`. |
 | `on-orphan` | `delete` | A page whose file is gone: `delete` (move to the trash) or `keep`. |
 | `dry-run` | `false` | Show what would change, change nothing. |
-| `adopt-root` | `false` | Publish the folder's `README.md` into a root page that has content this publisher did not write. Needed once. |
+| `adopt-root` | `true` | Publish the folder's `README.md` into a root page that has content this publisher did not write. Set `false` to refuse to overwrite a hand-written root page. |
 | `editors-group-id` | ID of `confluence-docs-publishers` | ID of the only Confluence group that may edit the pages the publisher creates. The service account must be in it. Empty turns this off. |
 | `mermaid` | `true` | Draw ` ```mermaid ` blocks as images. |
 | `check-only` | `false` | Only convert the docs and report problems. No AWS or Confluence access. |
