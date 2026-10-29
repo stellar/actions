@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from confluence_publish.tree import TitleError
 from confluence_publish.sync import PROPERTY_KEY, publish, render_all
 from fake import FakeConfluence
 
@@ -129,18 +130,30 @@ def test_refuses_a_title_clash_outside_the_root(docs):
     assert "rename the folder guides" in str(e.value)
 
 
-def test_same_titled_page_under_the_root_is_taken_over(docs):
+def test_same_titled_page_under_the_root_is_refused(docs):
     fake = FakeConfluence()
     root = fake.add("Parent page")
     handmade = fake.add("Guides", parent=root, body="hand-written guides index")
-    run(fake, docs, root)
-    page = fake.pages[handmade]
-    assert "hand-written" not in page["body"] and 'ac:name="children"' in page["body"]
-    assert fake.props[(handmade, PROPERTY_KEY)]["value"]["key"] == "guides"
-    # Its new child pages are published beneath the taken-over page.
-    assert live(fake)["Setup guide (docs-publisher test)"]["parentId"] == handmade
-    fake.calls.clear()
-    assert run(fake, docs, root).summary() == {"unchanged": 5}
+    with pytest.raises(TitleError) as e:
+        run(fake, docs, root)
+    msg = str(e.value)
+    assert "made by hand" in msg and handmade in msg and "under this repo's root page" in msg
+    assert "rename or delete it in Confluence" in msg
+    assert fake.pages[handmade]["body"] == "hand-written guides index"
+    assert not [c for c in fake.calls if c[0] in ("create", "update", "delete")]
+
+
+def test_same_titled_page_from_another_repo_under_the_root_is_refused(docs):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    theirs = fake.add("Guides", parent=root, body="theirs")
+    fake.props[(theirs, PROPERTY_KEY)] = {"id": "x", "version": 1,
+                                          "value": {"repo": "other/repo", "key": "guides"}}
+    with pytest.raises(TitleError) as e:
+        run(fake, docs, root)
+    assert "published by other/repo" in str(e.value)
+    assert fake.pages[theirs]["body"] == "theirs"
+    assert fake.props[(theirs, PROPERTY_KEY)]["value"]["repo"] == "other/repo"
 
 
 def test_unmatched_pages_under_the_root_are_left_alone(docs):
@@ -563,12 +576,12 @@ def test_a_symlinked_docs_folder_is_refused(docs, tmp_path):
 def test_created_pages_are_restricted_to_the_editors_group_id(docs):
     fake = FakeConfluence()
     root = fake.add("Parent page")
-    handmade = fake.add("Guides", parent=root, body="hand-written guides index")
+    handmade = fake.add("Notes", parent=root, body="hand-written")
     run(fake, docs, root, editors_group_id="g-1")
     pages = live(fake)
     created = [p for p in pages.values() if p["id"] not in (root, handmade)]
     assert created and all(p.get("editors") == "g-1" for p in created)
-    # The root page and a page it took over keep their own permissions.
+    # The root page and pages it didn't create keep their own permissions.
     assert "editors" not in fake.pages[root] and "editors" not in fake.pages[handmade]
     fake.calls.clear()
     run(fake, docs, root, editors_group_id="g-1")

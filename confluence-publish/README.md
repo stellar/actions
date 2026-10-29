@@ -69,8 +69,7 @@ them; anyone who can see the space can still read and comment on them. For
 this the service account must be in that group and have the space's
 "Restrictions: Add/Delete" permission, and a scoped token needs the
 `write:content.restriction:confluence` scope. The restriction is set only on pages it
-creates: the root page, and existing pages it takes over, keep their
-permissions. Space admins can always edit a page or lift its restriction.
+creates; the root page keeps its permissions. Space admins can always edit a page or lift its restriction.
 
 If Confluence refuses to set a restriction (the account lacks that permission
 or scope), the run still publishes, with a warning, and leaves those pages
@@ -88,12 +87,12 @@ pages it created are restricted, whether or not they changed.
 - Relative links between docs become page links; links to a heading land on
   it. Relative images are uploaded as attachments. Mermaid diagrams are drawn
   as images. Each page starts with a note linking to its source file.
-- It owns everything under the root page and nothing outside it. Pages it
-  publishes carry a content property (`confluence-publish`) naming the repo
-  and file; only those are updated, moved or trashed. Other pages under the
-  root are left alone, unless one has the same title as a doc, in which case
-  the doc is published into it. A title clash with a page outside the root
-  fails the run before anything changes, and the error is shown on the file.
+- It only changes pages it created, plus the root page. Pages it publishes
+  carry a content property (`confluence-publish`) naming the repo and file;
+  only those are updated, moved or trashed. Every other page is left alone,
+  under the root or not. If a doc's title is already used by any other page
+  in the space, the run fails before anything changes, says which page and
+  how to fix it, and the error is shown on the file.
 - Unchanged pages are not re-saved, but their images are checked and put back
   if they were removed. Moving or renaming a file keeps the same page (same ID
   and URL) as long as its title stays the same.

@@ -52,7 +52,7 @@ class Managed:
 
 @dataclass
 class Step:
-    action: str  # create | update | adopt | take-over | unchanged | delete | keep
+    action: str  # create | update | adopt | unchanged | delete | keep
     key: str
     title: str
     page_id: str | None = None
@@ -121,8 +121,8 @@ class Publisher:
     def discover(self) -> dict[str, Managed]:
         """Find the pages this repo published, anywhere under the root page.
 
-        Also records every page under the root (self.subtree), so a doc whose title
-        matches a page there can take that page over instead of failing.
+        Also records every page under the root (self.subtree), so pages this repo
+        didn't publish are never trashed along with one it did.
         """
         found: dict[str, Managed] = {}
         self.subtree: dict[str, str] = {}  # page id -> parent id, for every page under the root
@@ -177,22 +177,20 @@ class Publisher:
                 raise TitleError(
                     f"{r.node.file} wants the title {r.node.title!r}, which the page for "
                     f"{ours[existing]} still has. Swap titles in two commits.", r.node.file)
-            if existing and existing in getattr(self, "subtree", {}):
-                # Everything under the root belongs to this repo: a page there with the
-                # doc's title is published into, whoever made it.
-                plan.steps.append(Step("take-over", key, r.node.title, existing,
-                                       "same title, already under the root page"))
-                continue
             if existing:
+                # Never publish into a page this repo didn't create, wherever it is.
                 prop = self.c.get_property(existing, PROPERTY_KEY)
                 owner = (f"published by {prop['value'].get('repo')}" if prop
                          else "made by hand, not by this publisher")
+                where = ("under this repo's root page"
+                         if existing in getattr(self, "subtree", {}) else "outside this repo's root page")
                 raise TitleError(
                     f"{r.node.file} would be published as {r.node.title!r}, but the space "
-                    f"already has a page with that title ({owner}, page id {existing}), outside "
-                    f"this repo's root page. Titles are unique per space, and this publisher "
-                    f"never changes pages outside its root. To fix, {r.node.how_to_retitle()}.",
-                    r.node.file)
+                    f"already has a page with that title ({owner}, page id {existing}), {where}. "
+                    f"Titles are unique per space, and this publisher only changes pages it "
+                    f"created, so it won't overwrite that one. To fix, {r.node.how_to_retitle()}; "
+                    f"or, if that page should become this doc, rename or delete it in Confluence "
+                    f"first.", r.node.file)
             plan.steps.append(Step("create", key, r.node.title))
         # Trashing a page trashes the pages under it. Pages this run keeps are moved
         # out first; anything else under an orphan (made by hand, or another repo's)
@@ -280,7 +278,7 @@ class Publisher:
         message = f"Published from {self.repo}" + (f"@{commit[:12]}" if commit else "")
 
         for step in plan.steps:
-            if (step.action not in ("create", "update", "adopt", "unchanged", "take-over")
+            if (step.action not in ("create", "update", "adopt", "unchanged")
                     or step.key == ROOT_KEY):
                 continue
             r = rendered[step.key]
@@ -293,13 +291,6 @@ class Publisher:
                     "repo": self.repo, "key": step.key, "hash": "", "attachments": {},
                     "commit": commit, "created": True}, None)
                 self.log(f"created  {step.key} -> page {pid}")
-            elif step.action == "take-over":
-                pid = step.page_id
-                page = self.c.get_page(pid)
-                self.c.update_page(pid, title=r.node.title, parent_id=parent_id, body=r.body,
-                                   version=page["version"], message=message)
-                prop = self.c.get_property(pid, PROPERTY_KEY)  # may be another repo's marker
-                self.log(f"took over {step.key} -> page {pid}")
             else:
                 m = by_id[step.page_id]
                 pid = m.id
@@ -317,7 +308,7 @@ class Publisher:
                 prop = m.prop
                 self.log(f"{'moved   ' if step.action == 'unchanged' else step.action + ' ':9}{step.key} -> page {pid}")
             ids[step.key] = pid
-            old = (prop or {}).get("value", {}) if step.action != "take-over" else {}
+            old = (prop or {}).get("value", {})
             self._sync_attachments(pid, r, (prop or {}).get("value", {}).get("attachments", {}))
             restricted = self._restrict(pid, old) or old.get("restricted", False)
             # Written last, so a run that dies half way redoes this page next time.
