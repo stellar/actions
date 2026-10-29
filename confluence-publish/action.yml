@@ -29,7 +29,7 @@ inputs:
   editors-group:
     description: 'Only this Confluence group may edit the pages the publisher creates. The service account must be in it. Empty leaves pages open to anyone who can edit the space.'
     required: false
-    default: 'confluence-docs-publisher'
+    default: 'confluence-docs-publishers'
   mermaid:
     description: 'Draw ```mermaid blocks as images (true/false).'
     required: false
