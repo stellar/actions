@@ -560,22 +560,22 @@ def test_a_symlinked_docs_folder_is_refused(docs, tmp_path):
         render_all(tmp_path / "docs-link", repo_blob_url=None)
 
 
-def test_created_pages_are_restricted_to_the_editors_group(docs):
+def test_created_pages_are_restricted_to_the_editors_group_id(docs):
     fake = FakeConfluence()
     root = fake.add("Parent page")
     handmade = fake.add("Guides", parent=root, body="hand-written guides index")
-    run(fake, docs, root, editors_group="publishers")
+    run(fake, docs, root, editors_group_id="g-1")
     pages = live(fake)
     created = [p for p in pages.values() if p["id"] not in (root, handmade)]
-    assert created and all(p.get("editors") == "publishers" for p in created)
+    assert created and all(p.get("editors") == "g-1" for p in created)
     # The root page and a page it took over keep their own permissions.
     assert "editors" not in fake.pages[root] and "editors" not in fake.pages[handmade]
     fake.calls.clear()
-    run(fake, docs, root, editors_group="publishers")
+    run(fake, docs, root, editors_group_id="g-1")
     assert not [c for c in fake.calls if c[0] == "restrict"]  # nothing to redo
 
 
-def test_no_editors_group_restricts_nothing(docs):
+def test_no_editors_group_id_restricts_nothing(docs):
     fake = FakeConfluence()
     root = fake.add("Parent page")
     run(fake, docs, root)
@@ -587,9 +587,9 @@ def test_a_failed_restriction_is_redone_next_run(docs):
     root = fake.add("Parent page")
     fake.break_restrictions = True
     with pytest.raises(RuntimeError):
-        run(fake, docs, root, editors_group="publishers")
+        run(fake, docs, root, editors_group_id="g-1")
     [first] = [p for p in live(fake).values() if p["id"] != root]
     assert "editors" not in first
     fake.break_restrictions = False
-    run(fake, docs, root, editors_group="publishers")
-    assert fake.pages[first["id"]]["editors"] == "publishers"
+    run(fake, docs, root, editors_group_id="g-1")
+    assert fake.pages[first["id"]]["editors"] == "g-1"

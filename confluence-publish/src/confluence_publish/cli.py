@@ -44,10 +44,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--adopt-root", action="store_true",
                    help="publish the folder's README.md into the root page even though it has "
                         "content this publisher did not write (only needed once)")
-    p.add_argument("--editors-group", default=os.environ.get("CONFLUENCE_EDITORS_GROUP", ""),
-                   help="only this Confluence group may edit the pages the publisher creates; "
-                        "the account must be in it (default: $CONFLUENCE_EDITORS_GROUP, or "
-                        "no restriction)")
+    p.add_argument("--editors-group-id", default=os.environ.get("CONFLUENCE_EDITORS_GROUP_ID", ""),
+                   help="ID of the only Confluence group that may edit the pages the publisher "
+                        "creates; the account must be in it (default: "
+                        "$CONFLUENCE_EDITORS_GROUP_ID, or no restriction)")
     p.add_argument("--check", action="store_true",
                    help="only convert the docs and report problems; needs no credentials")
     a = p.parse_args(argv)
@@ -83,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
         publish(client, a.docs, root_page_id=a.root_page, repo=a.repo, repo_blob_url=blob,
                 dry_run=a.dry_run, on_orphan=a.on_orphan, commit=os.environ.get("GITHUB_SHA", ""),
                 mermaid=mermaid, title_prefix=a.title_prefix, adopt_root=a.adopt_root,
-                editors_group=a.editors_group)
+                editors_group_id=a.editors_group_id)
         return 0
     except (ValueError, ConfluenceError) as e:
         print(f"error: {e}", file=sys.stderr)

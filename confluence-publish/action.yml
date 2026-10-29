@@ -26,10 +26,10 @@ inputs:
     description: "Publish the folder's README.md into a root page that has content this publisher did not write (true/false). Needed once."
     required: false
     default: 'false'
-  editors-group:
-    description: 'Only this Confluence group may edit the pages the publisher creates. The service account must be in it. Empty leaves pages open to anyone who can edit the space.'
+  editors-group-id:
+    description: 'ID of the only Confluence group that may edit the pages the publisher creates (default: confluence-docs-publishers). The service account must be in it. Empty leaves pages open to anyone who can edit the space.'
     required: false
-    default: 'confluence-docs-publishers'
+    default: 'c48b3bdd-d1ec-404e-85a9-2c5014481a07'
   mermaid:
     description: 'Draw ```mermaid blocks as images (true/false).'
     required: false
@@ -80,7 +80,7 @@ runs:
         ON_ORPHAN: ${{ inputs.on-orphan }}
         DRY_RUN: ${{ inputs.dry-run }}
         ADOPT_ROOT: ${{ inputs.adopt-root }}
-        CONFLUENCE_EDITORS_GROUP: ${{ inputs.editors-group }}
+        CONFLUENCE_EDITORS_GROUP_ID: ${{ inputs.editors-group-id }}
         MERMAID: ${{ inputs.mermaid }}
         CHECK_ONLY: ${{ inputs.check-only }}
         CONFLUENCE_BASE_URL: ${{ inputs.base-url }}

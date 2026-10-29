@@ -35,28 +35,9 @@ def test_update_does_not_retry_other_errors(monkeypatch):
     assert calls == [1]
 
 
-def test_restrict_edits_looks_the_group_up_once(monkeypatch):
+def test_restrict_edits_adds_the_group_to_the_edit_restriction(monkeypatch):
     c = Confluence("https://example.atlassian.net", "me@example.com", "token")
-    lookups, puts = [], []
-
-    def paged(path, params=None):
-        lookups.append((path, params))
-        return iter([{"name": "publishers-old", "id": "g-0"}, {"name": "publishers", "id": "g-1"}])
-
-    monkeypatch.setattr(c, "_paged", paged)
+    puts = []
     monkeypatch.setattr(c, "_call", lambda m, path, **kw: puts.append((m, path)))
-    c.restrict_edits("10", "publishers")
-    c.restrict_edits("11", "publishers")
-    assert lookups == [("/wiki/rest/api/group/picker", {"query": "publishers"})]
-    assert puts == [("PUT", "/wiki/rest/api/content/10/restriction/byOperation/update/byGroupId/g-1"),
-                    ("PUT", "/wiki/rest/api/content/11/restriction/byOperation/update/byGroupId/g-1")]
-
-
-def test_restrict_edits_names_a_missing_group(monkeypatch):
-    c = Confluence("https://example.atlassian.net", "me@example.com", "token")
-    monkeypatch.setattr(c, "_paged", lambda path, params=None: iter([{"name": "nope-2", "id": "x"}]))
-    try:
-        c.restrict_edits("10", "nope")
-        raise AssertionError("expected an error")
-    except ConfluenceError as e:
-        assert "no Confluence group named 'nope'" in str(e)
+    c.restrict_edits("10", "g-1")
+    assert puts == [("PUT", "/wiki/rest/api/content/10/restriction/byOperation/update/byGroupId/g-1")]
