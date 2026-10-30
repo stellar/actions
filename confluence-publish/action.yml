@@ -63,13 +63,19 @@ runs:
       shell: bash
       run: npm install -g @mermaid-js/mermaid-cli@11.17.0
 
+    # The credentials come back as this step's outputs, not as job environment
+    # variables, so only the publish step below can use them, not the caller's
+    # later steps.
     - name: Configure AWS credentials via OIDC
+      id: aws
       if: inputs.check-only != 'true'
       uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
       with:
         role-to-assume: ${{ inputs.role-to-assume }}
         aws-region: 'us-east-1'
         role-session-name: gha-confluence-${{ github.run_id }}-${{ github.run_attempt }}
+        output-env-credentials: false
+        output-credentials: true
 
     - name: Publish
       shell: bash
@@ -85,12 +91,16 @@ runs:
         CHECK_ONLY: ${{ inputs.check-only }}
         CONFLUENCE_BASE_URL: ${{ inputs.base-url }}
         SECRET_ID: ${{ inputs.secret-id }}
+        AWS_ACCESS_KEY_ID: ${{ steps.aws.outputs.aws-access-key-id }}
+        AWS_SECRET_ACCESS_KEY: ${{ steps.aws.outputs.aws-secret-access-key }}
+        AWS_SESSION_TOKEN: ${{ steps.aws.outputs.aws-session-token }}
+        AWS_REGION: us-east-1
       run: |
         set -euo pipefail
         args=("$FOLDER" --branch "$GITHUB_REF_NAME" --on-orphan "$ON_ORPHAN")
         if [ "$MERMAID" = "true" ]; then args+=(--mermaid); fi
         if [ "$CHECK_ONLY" = "true" ]; then
-          uv run --quiet --project "$GITHUB_ACTION_PATH" confluence-publish "${args[@]}" --check
+          uv run --quiet --locked --project "$GITHUB_ACTION_PATH" confluence-publish "${args[@]}" --check
           exit 0
         fi
         if [ -z "$ROOT_PAGE" ]; then echo "::error::root-page is required to publish"; exit 1; fi
@@ -103,4 +113,4 @@ runs:
         echo "::add-mask::$CONFLUENCE_API_TOKEN"
         unset secret
         export CONFLUENCE_EMAIL CONFLUENCE_API_TOKEN
-        uv run --quiet --project "$GITHUB_ACTION_PATH" confluence-publish "${args[@]}"
+        uv run --quiet --locked --project "$GITHUB_ACTION_PATH" confluence-publish "${args[@]}"
