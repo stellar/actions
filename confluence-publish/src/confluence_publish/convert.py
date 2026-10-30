@@ -40,8 +40,9 @@ class Context:
     attachments: dict[str, Path] = field(default_factory=dict)  # name -> file
     # source file or folder -> {GitHub heading slug: Confluence heading anchor}
     anchors_by_source: dict[str, dict[str, str]] = field(default_factory=dict)
-    # Draws a Mermaid diagram and returns the PNG's path; None shows the source as code.
-    mermaid: Callable[[str], Path] | None = None
+    # Draws a Mermaid diagram (source, doc it's in) and returns the PNG's path;
+    # None shows the source as code.
+    mermaid: Callable[[str, str], Path] | None = None
     # Attachment name -> fingerprint to use instead of hashing the file. Rendered
     # diagrams use their source, since the PNG's bytes vary with the runner's fonts.
     attachment_fingerprints: dict[str, str] = field(default_factory=dict)
@@ -127,7 +128,7 @@ def make_renderer(ctx: Context) -> MarkdownIt:
     def fence(tokens, idx, options, env):
         tok = tokens[idx]
         if ctx.mermaid and (tok.info.split() or [""])[0].lower() == "mermaid":
-            png = ctx.mermaid(tok.content)
+            png = ctx.mermaid(tok.content, ctx.source)
             ctx.attachments[png.name] = png
             ctx.attachment_fingerprints[png.name] = mermaid_fingerprint(tok.content)
             # mermaid-cli draws at 2x for sharp text; show it at its natural size,

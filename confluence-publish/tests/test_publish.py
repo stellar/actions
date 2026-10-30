@@ -281,7 +281,7 @@ class FakeMermaid:
         self.out_dir, self.calls = out_dir, 0
         out_dir.mkdir(parents=True, exist_ok=True)
 
-    def __call__(self, source):
+    def __call__(self, source, where=""):
         from confluence_publish.mermaid import fingerprint
         self.calls += 1
         path = self.out_dir / f"mermaid-{fingerprint(source)[:16]}.png"
@@ -328,7 +328,7 @@ def test_changing_a_diagram_uploads_a_new_image_and_trashes_the_old(docs, tmp_pa
 
 
 def test_a_diagram_that_fails_to_render_stops_before_publishing(docs):
-    def broken(source):
+    def broken(source, where=""):
         raise ValueError("a Mermaid diagram failed to render:\n  Parse error on line 1")
     fake = FakeConfluence()
     root = fake.add("Parent page")
