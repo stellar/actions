@@ -164,6 +164,11 @@ class Publisher:
                         f"{r.node.file} changes its title to {r.node.title!r}, which the page "
                         f"for {holder.key} still has. Swap or reuse titles in two commits.",
                         r.node.file)
+                if not holder and m.title.lower() != r.node.title.lower():
+                    # A new title held by a page that isn't ours would fail mid-run.
+                    existing = self.c.find_page_by_title(space_id, r.node.title)
+                    if existing and existing != m.id:
+                        raise self._clash(r, existing)
                 same = m.prop["value"].get("hash") == r.hash
                 plan.steps.append(Step("unchanged" if same else "update", key, r.node.title, m.id))
                 continue
@@ -187,17 +192,7 @@ class Publisher:
                                            "created by an earlier run that stopped before "
                                            "marking it"))
                     continue
-                owner = (f"published by {prop['value'].get('repo')}" if prop
-                         else "made by hand, not by this publisher")
-                where = ("under this repo's root page"
-                         if existing in getattr(self, "subtree", {}) else "outside this repo's root page")
-                raise TitleError(
-                    f"{r.node.file} would be published as {r.node.title!r}, but the space "
-                    f"already has a page with that title ({owner}, page id {existing}), {where}. "
-                    f"Titles are unique per space, and this publisher only changes pages it "
-                    f"created, so it won't overwrite that one. To fix, {r.node.how_to_retitle()}; "
-                    f"or, if that page should become this doc, rename or delete it in Confluence "
-                    f"first.", r.node.file)
+                raise self._clash(r, existing, prop)
             plan.steps.append(Step("create", key, r.node.title))
         # Trashing a page trashes the pages under it. Pages this run keeps are moved
         # out first; anything else under an orphan (made by hand, or another repo's)
@@ -336,6 +331,21 @@ class Publisher:
                 self.log(f"deleted  {step.key} (page {step.page_id})")
             elif step.action == "keep":
                 self.log(f"kept     {step.key} (page {step.page_id}): {step.reason}")
+
+    def _clash(self, r: Rendered, existing: str, prop: dict | None = None) -> TitleError:
+        """The error for a doc whose title is held by a page this repo didn't create."""
+        prop = prop or self.c.get_property(existing, PROPERTY_KEY)
+        owner = (f"published by {prop['value'].get('repo')}" if prop
+                 else "made by hand, not by this publisher")
+        where = ("under this repo's root page"
+                 if existing in getattr(self, "subtree", {}) else "outside this repo's root page")
+        return TitleError(
+            f"{r.node.file} would be published as {r.node.title!r}, but the space "
+            f"already has a page with that title ({owner}, page id {existing}), {where}. "
+            f"Titles are unique per space, and this publisher only changes pages it "
+            f"created, so it won't overwrite that one. To fix, {r.node.how_to_retitle()}; "
+            f"or, if that page should become this doc, rename or delete it in Confluence "
+            f"first.", r.node.file)
 
     def _unclaimed_create(self, page_id: str, r: Rendered) -> bool:
         """Is this a page an earlier run created but died before marking as its own?

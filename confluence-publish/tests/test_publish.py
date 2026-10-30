@@ -651,3 +651,19 @@ def test_a_lookalike_page_edited_since_is_refused(docs):
     fake.pages[stray["id"]]["version"] = 2  # someone edited it after the failed run
     with pytest.raises(TitleError, match="made by hand"):
         run(fake, docs, root)
+
+
+def test_retitling_a_published_doc_onto_a_taken_title_fails_before_writing(docs):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    elsewhere = fake.add("Elsewhere", body="someone else's")
+    run(fake, docs, root)
+    f = docs / "getting-started.md"
+    f.write_text(f.read_text().replace("title: Getting started (docs-publisher test)",
+                                       "title: Elsewhere", 1))
+    fake.calls.clear()
+    with pytest.raises(TitleError, match="made by hand") as e:
+        run(fake, docs, root)
+    assert e.value.file == "getting-started.md"
+    assert not [c for c in fake.calls if c[0] in ("create", "update", "delete", "upload")]
+    assert fake.pages[elsewhere]["body"] == "someone else's"
