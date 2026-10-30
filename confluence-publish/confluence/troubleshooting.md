@@ -38,9 +38,9 @@ repo.
 
 ## Links, images and diagrams
 
-**"link '…' points to …, which is not in the docs"**
-A relative link points at a file that isn't in the docs folder. Fix the path,
-or use a full URL for files elsewhere in the repo.
+**"link '…' points to …, which is not in the docs"** or **"…which doesn't exist"**
+A relative link points at a Markdown file that isn't in the docs folder, or at
+a file that doesn't exist. Fix the path, or use a full URL.
 
 **"image '…' not found"** or **"…is outside the docs folder"**
 Images must exist and be inside the docs folder.

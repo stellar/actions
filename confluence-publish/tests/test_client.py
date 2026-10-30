@@ -51,3 +51,22 @@ def test_calls_only_go_to_the_configured_site(monkeypatch):
         raise AssertionError("expected a refusal")
     except ValueError as e:
         assert "not a path on the Confluence site" in str(e)
+
+
+import pytest
+
+
+@pytest.mark.parametrize("url", [
+    "https://example.atlassian.net", "https://example.atlassian.net/wiki",
+    "https://api.atlassian.com/ex/confluence/b10b50fe-b333-4aac-9798-e087d05ae0a8"])
+def test_atlassian_base_urls_are_accepted(url):
+    Confluence(url, "me@example.com", "token")
+
+
+@pytest.mark.parametrize("url", [
+    "https://evil.example", "http://example.atlassian.net", "https://example.atlassian.net.evil.example",
+    "https://user@example.atlassian.net", "https://example.atlassian.net:8443",
+    "https://api.atlassian.com/other", "https://evil.example/ex/confluence/x"])
+def test_other_base_urls_are_refused_before_any_request(url):
+    with pytest.raises(ValueError, match="refusing Confluence base URL"):
+        Confluence(url, "me@example.com", "token")

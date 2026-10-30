@@ -698,6 +698,8 @@ def test_a_copy_under_a_removed_folder_keeps_the_folder_page(docs):
     _, copy = _copy_with_marker(fake, "Restart the service (docs-publisher test)",
                                 "Copy of Restart the service")
     shutil.rmtree(docs / "runbooks")
+    start = docs / "getting-started.md"  # drop the link to the removed folder too
+    start.write_text(start.read_text().replace("[runbooks](runbooks/)", "runbooks"))
     run(fake, docs, root, on_orphan="delete")
     folder = live(fake).get("Runbooks (docs-publisher test)")
     assert folder and not fake.pages[copy]["trashed"]
@@ -787,3 +789,14 @@ def test_a_wrapped_paragraph_is_one_line_but_a_hard_break_stays():
     ctx = Context(source="a.md", docs_root=SAMPLE.resolve(), titles_by_source={})
     body = to_storage("one\ntwo  \nthree", ctx, view_url=None, is_folder=False)
     assert "<p>one two<br />three</p>" in body
+
+
+@pytest.mark.parametrize("href", ["missing.txt", "../outside-and-missing.txt"])
+def test_a_link_to_a_file_that_does_not_exist_is_an_error(tmp_path, href):
+    from confluence_publish.convert import Context, to_storage
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    ctx = Context(source="a.md", docs_root=docs.resolve(), titles_by_source={},
+                  repo_blob_url="https://github.com/o/r/blob/main/docs")
+    with pytest.raises(ValueError, match="doesn't exist"):
+        to_storage(f"[x]({href})", ctx, view_url=None, is_folder=False)

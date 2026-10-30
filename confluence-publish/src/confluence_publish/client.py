@@ -11,6 +11,7 @@ from __future__ import annotations
 import mimetypes
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import requests
 
@@ -21,11 +22,24 @@ class ConfluenceError(RuntimeError):
         self.status = status
 
 
+def _check_base_url(base: str) -> None:
+    """Only ever send the token to Atlassian: the gateway or an atlassian.net site."""
+    parts = urlsplit(base)
+    host = (parts.hostname or "").lower()
+    gateway = host == "api.atlassian.com" and parts.path.startswith("/ex/confluence/")
+    site = host.endswith(".atlassian.net") and parts.path in ("", "/")
+    if parts.scheme != "https" or parts.username or parts.port or not (gateway or site):
+        raise ValueError(f"refusing Confluence base URL {base!r}: it must be "
+                         "https://api.atlassian.com/ex/confluence/<cloud-id> or "
+                         "https://<site>.atlassian.net, so the token only goes to Atlassian")
+
+
 class Confluence:
     def __init__(self, base_url: str, email: str, token: str, *, retries: int = 5):
         self.base = base_url.rstrip("/")
         if self.base.endswith("/wiki"):
             self.base = self.base[: -len("/wiki")]
+        _check_base_url(self.base)
         self.http = requests.Session()
         self.http.auth = (email, token)
         self.http.headers.update({"Accept": "application/json"})

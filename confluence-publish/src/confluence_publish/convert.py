@@ -180,7 +180,9 @@ def make_renderer(ctx: Context) -> MarkdownIt:
         if path == ctx.source and fragment:  # link to a heading on this page
             tok.meta["ac"] = True
             return f"<ac:link{anchor}><ac:link-body>"
-        if ctx.repo_blob_url and (ctx.docs_root / path).exists():
+        if not (ctx.docs_root / path).exists():
+            raise ValueError(f"{ctx.source}: link {href!r} points to {path}, which doesn't exist")
+        if ctx.repo_blob_url:
             # A file elsewhere in the repo ("../action.yml"): link to it on GitHub,
             # with the ".." resolved so the link reads cleanly.
             url = urlsplit(ctx.repo_blob_url.rstrip("/") + "/" + path)

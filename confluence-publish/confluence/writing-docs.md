@@ -44,8 +44,9 @@ repo's titles apart from everyone else's.
   becomes a link to that doc's page.
 - Link to a heading: `[failover](runbook.md#failover)`. It lands on that
   heading.
-- A relative link to a file that isn't in the docs folder fails the run, so
-  broken links are caught in the pull request.
+- A relative link to a file that doesn't exist fails the run, so broken links
+  are caught in the pull request. A link to another file in the repo, outside
+  the docs folder, goes to that file on GitHub.
 - Links to websites are left as they are. A bare `https://...` address or an
   email address becomes a link on its own; `www.example.com` without
   `https://` doesn't.
