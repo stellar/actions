@@ -667,3 +667,37 @@ def test_retitling_a_published_doc_onto_a_taken_title_fails_before_writing(docs)
     assert e.value.file == "getting-started.md"
     assert not [c for c in fake.calls if c[0] in ("create", "update", "delete", "upload")]
     assert fake.pages[elsewhere]["body"] == "someone else's"
+
+
+def _copy_with_marker(fake, title, new_title):
+    """Copy a published page with its properties, as Confluence's "copy page" can."""
+    src = live(fake)[title]
+    copy = fake.add(new_title, parent=src["parentId"], body=src["body"])
+    fake.props[(copy, PROPERTY_KEY)] = dict(fake.props[(src["id"], PROPERTY_KEY)])
+    return src["id"], copy
+
+
+def test_a_copied_page_claiming_the_same_file_is_kept_and_explained(docs):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    run(fake, docs, root)
+    original, copy = _copy_with_marker(fake, "Restart the service (docs-publisher test)",
+                                       "Copy of Restart the service")
+    logs = []
+    plan = publish(fake, docs, root_page_id=root, repo=REPO, dry_run=False, on_orphan="delete",
+                   repo_blob_url="https://github.com/octo/docs/blob/main/docs", log=logs.append)
+    [keep] = [s for s in plan.steps if s.page_id in (original, copy) and s.action == "keep"]
+    assert "probably a copy" in keep.reason and "runbooks/restart.md" in keep.reason
+    assert not fake.pages[original]["trashed"] and not fake.pages[copy]["trashed"]
+
+
+def test_a_copy_under_a_removed_folder_keeps_the_folder_page(docs):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    run(fake, docs, root)
+    _, copy = _copy_with_marker(fake, "Restart the service (docs-publisher test)",
+                                "Copy of Restart the service")
+    shutil.rmtree(docs / "runbooks")
+    run(fake, docs, root, on_orphan="delete")
+    folder = live(fake).get("Runbooks (docs-publisher test)")
+    assert folder and not fake.pages[copy]["trashed"]

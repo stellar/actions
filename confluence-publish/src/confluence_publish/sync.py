@@ -28,6 +28,7 @@ from .convert import Context, heading_anchors, to_storage
 from .tree import ROOT_KEY, Node, TitleError, build_tree
 
 PROPERTY_KEY = "confluence-publish"
+DUPLICATE = "#duplicate-"  # marks a second page claiming the same file in discover()
 FORMAT_VERSION = 2  # bump to force every page to republish after a format change
 
 
@@ -138,8 +139,8 @@ class Publisher:
                 if not prop or prop["value"].get("repo") != self.repo:
                     continue
                 key = prop["value"]["key"]
-                if key in found:  # two pages claim one file: keep the first, flag the other
-                    key = f"{key}#duplicate-{child['id']}"
+                if key in found:  # two pages claim one file (a copied page): flag the other
+                    key = f"{key}{DUPLICATE}{child['id']}"
                 page = self.c.get_page(child["id"])
                 found[key] = Managed(child["id"], key, page["title"], parent,
                                      page["version"], prop, depth)
@@ -148,7 +149,10 @@ class Publisher:
     def plan(self, rendered: dict[str, Rendered], managed: dict[str, Managed],
              space_id: str, on_orphan: str) -> Plan:
         plan = Plan()
-        orphans = {k: m for k, m in managed.items() if k not in rendered}
+        orphans = {k: m for k, m in managed.items() if k not in rendered and DUPLICATE not in k}
+        # A page whose marker copies another's (a page copied with its properties)
+        # is never updated or trashed: which of the two is the original is a guess.
+        duplicates = [m for k, m in managed.items() if DUPLICATE in k]
         orphan_by_title = {m.title.lower(): m for m in orphans.values()}
         managed_by_title = {m.title.lower(): m for m in managed.values()}
         for key, r in rendered.items():
@@ -198,7 +202,12 @@ class Publisher:
         # out first; anything else under an orphan (made by hand, or another repo's)
         # means the orphan is kept instead.
         staying = {s.page_id for s in plan.steps if s.page_id}
-        going = {o.id for o in orphans.values()}
+        going = {o.id for o in orphans.values()}  # duplicates are neither: they hold their parent
+        for d in duplicates:
+            original = d.key.split(DUPLICATE)[0]
+            plan.steps.append(Step("keep", d.key, d.title, d.id,
+                                   f"also claims {original}, so it is probably a copy of that "
+                                   "page; delete whichever of the two isn't wanted"))
         children: dict[str, list[str]] = {}
         for pid, parent in getattr(self, "subtree", {}).items():
             children.setdefault(parent, []).append(pid)
