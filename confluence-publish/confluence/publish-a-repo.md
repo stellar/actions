@@ -52,7 +52,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: stellar/actions/confluence-publish@main
@@ -68,7 +68,7 @@ jobs:
       contents: read
     concurrency: confluence-publish
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: stellar/actions/confluence-publish@main
