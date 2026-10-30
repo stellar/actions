@@ -780,3 +780,10 @@ def test_a_link_to_a_repo_file_outside_the_docs_points_at_github(tmp_path):
                   repo_blob_url="https://github.com/o/r/blob/main/docs")
     body = to_storage("[the action](../action.yml)", ctx, view_url=None, is_folder=False)
     assert '<a href="https://github.com/o/r/blob/main/action.yml">' in body
+
+
+def test_a_wrapped_paragraph_is_one_line_but_a_hard_break_stays():
+    from confluence_publish.convert import Context, to_storage
+    ctx = Context(source="a.md", docs_root=SAMPLE.resolve(), titles_by_source={})
+    body = to_storage("one\ntwo  \nthree", ctx, view_url=None, is_folder=False)
+    assert "<p>one two<br />three</p>" in body

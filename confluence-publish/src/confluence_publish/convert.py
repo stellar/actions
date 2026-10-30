@@ -201,6 +201,16 @@ def make_renderer(ctx: Context) -> MarkdownIt:
                 depth -= 1
         return "</a>"
 
+    def softbreak(tokens, idx, options, env):
+        # A line break inside a paragraph is a space in Markdown (as on GitHub).
+        # Left as a newline, Confluence shows it as a hard line break.
+        return " "
+
+    def hardbreak(tokens, idx, options, env):
+        return "<br />"  # without the newline after it, which would be a second break
+
+    rules["softbreak"] = softbreak
+    rules["hardbreak"] = hardbreak
     rules["fence"] = fence
     rules["code_block"] = code_block
     rules["image"] = image
