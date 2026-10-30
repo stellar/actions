@@ -71,7 +71,13 @@ class FakeConfluence:
     def get_property(self, page_id, key):
         return self.props.get((page_id, key))
 
+    # Set to N to make the next N property writes fail, as if the run died there.
+    break_claims = 0
+
     def set_property(self, page_id, key, value, existing):
+        if self.break_claims:
+            self.break_claims -= 1
+            raise RuntimeError("run died before marking the page")
         cur = self.props.get((page_id, key))
         if (cur is None) != (existing is None):
             raise RuntimeError("property create/update mismatch")

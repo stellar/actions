@@ -59,3 +59,9 @@ GitHub, and is then overwritten.
 
 Each page is marked as done only after it's fully written, so the next run
 picks up where the last one stopped. Nothing is duplicated.
+
+Creating a page and marking it as the publisher's are two separate requests.
+If a run stops between them, the next run recognises the page as its own and
+marks it: it's under the root page, nobody has edited it since, and its note
+links to that doc's source file. Any other unmarked page with the same title is
+refused, as usual.

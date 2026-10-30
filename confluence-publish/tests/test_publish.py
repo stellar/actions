@@ -623,3 +623,31 @@ def test_turning_restrictions_on_later_restricts_existing_pages(docs):
     run(fake, docs, root)
     run(fake, docs, root, editors_group_id="g-1")
     assert all(p.get("editors") == "g-1" for p in live(fake).values() if p["id"] != root)
+
+
+def test_a_page_created_but_never_marked_is_reclaimed_next_run(docs):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    fake.break_claims = 1  # the run dies right after creating its first page
+    with pytest.raises(RuntimeError):
+        run(fake, docs, root, editors_group_id="g-1")
+    [stray] = [p for p in live(fake).values() if p["id"] != root]
+    assert (stray["id"], PROPERTY_KEY) not in fake.props
+    plan = run(fake, docs, root, editors_group_id="g-1")
+    assert [s.action for s in plan.steps].count("reclaim") == 1
+    assert len(live(fake)) == 6  # nothing duplicated
+    mark = fake.props[(stray["id"], PROPERTY_KEY)]["value"]
+    assert mark["repo"] == REPO and mark["created"] and mark["restricted"]
+    assert fake.pages[stray["id"]]["editors"] == "g-1"
+
+
+def test_a_lookalike_page_edited_since_is_refused(docs):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    fake.break_claims = 1
+    with pytest.raises(RuntimeError):
+        run(fake, docs, root)
+    [stray] = [p for p in live(fake).values() if p["id"] != root]
+    fake.pages[stray["id"]]["version"] = 2  # someone edited it after the failed run
+    with pytest.raises(TitleError, match="made by hand"):
+        run(fake, docs, root)

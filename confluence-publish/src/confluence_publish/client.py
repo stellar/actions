@@ -34,7 +34,10 @@ class Confluence:
     # -- plumbing -----------------------------------------------------------
 
     def _call(self, method: str, path: str, **kw) -> requests.Response:
-        url = path if path.startswith("http") else self.base + path
+        if not path.startswith("/"):
+            # Only ever our own base URL: the token must never go to a server-given host.
+            raise ValueError(f"refusing to call {path!r}: not a path on the Confluence site")
+        url = self.base + path
         for attempt in range(self.retries + 1):
             r = self.http.request(method, url, timeout=60, **kw)
             if r.status_code == 429 or r.status_code >= 500:
@@ -60,7 +63,7 @@ class Confluence:
             if not nxt:
                 return
             # "next" is relative to the site; keep our base (site or gateway).
-            data = self._json("GET", nxt if nxt.startswith("/wiki") else "/wiki" + nxt)
+            data = self._json("GET", nxt if nxt.startswith("/wiki/") else "/wiki" + nxt)
 
     # -- pages --------------------------------------------------------------
 

@@ -99,6 +99,9 @@ pages it created are restricted, whether or not they changed.
 - A page whose file is gone is trashed (`on-orphan: delete`), unless pages this
   repo didn't publish sit under it; then it is kept, so they aren't trashed
   with it.
+- A run that stops between creating a page and marking it as its own is
+  picked up by the next run, which marks the page if nobody edited it since
+  and its note links to that doc's source file. Nothing is duplicated.
 - Only files inside `folder` are published or uploaded: a symlink that leads
   out of it, or a symlinked folder, is an error.
 

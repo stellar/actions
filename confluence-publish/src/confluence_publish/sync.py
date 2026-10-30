@@ -19,6 +19,7 @@ import re
 
 import hashlib
 import json
+from html import escape
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -37,6 +38,7 @@ class Rendered:
     attachments: dict[str, Path]
     attachment_hashes: dict[str, str]
     hash: str
+    view_url: str | None = None  # the source file in GitHub, linked from the page's banner
 
 
 @dataclass
@@ -52,7 +54,7 @@ class Managed:
 
 @dataclass
 class Step:
-    action: str  # create | update | adopt | unchanged | delete | keep
+    action: str  # create | reclaim | update | adopt | unchanged | delete | keep
     key: str
     title: str
     page_id: str | None = None
@@ -102,7 +104,7 @@ def render_all(docs: Path, *, repo_blob_url: str | None, mermaid=None,
                       for name, p in sorted(ctx.attachments.items())}
         digest = _sha(json.dumps({"v": FORMAT_VERSION, "title": node.title, "parent": node.parent,
                                   "body": body, "attachments": att_hashes}, sort_keys=True).encode())
-        out[key] = Rendered(node, body, dict(ctx.attachments), att_hashes, digest)
+        out[key] = Rendered(node, body, dict(ctx.attachments), att_hashes, digest, view)
     return out
 
 
@@ -180,6 +182,11 @@ class Publisher:
             if existing:
                 # Never publish into a page this repo didn't create, wherever it is.
                 prop = self.c.get_property(existing, PROPERTY_KEY)
+                if not prop and self._unclaimed_create(existing, r):
+                    plan.steps.append(Step("reclaim", key, r.node.title, existing,
+                                           "created by an earlier run that stopped before "
+                                           "marking it"))
+                    continue
                 owner = (f"published by {prop['value'].get('repo')}" if prop
                          else "made by hand, not by this publisher")
                 where = ("under this repo's root page"
@@ -278,19 +285,25 @@ class Publisher:
         message = f"Published from {self.repo}" + (f"@{commit[:12]}" if commit else "")
 
         for step in plan.steps:
-            if (step.action not in ("create", "update", "adopt", "unchanged")
+            if (step.action not in ("create", "reclaim", "update", "adopt", "unchanged")
                     or step.key == ROOT_KEY):
                 continue
             r = rendered[step.key]
             parent_id = ids[r.node.parent] if r.node.parent else self.root
-            if step.action == "create":
-                pid = self.c.create_page(space_id, parent_id, r.node.title, r.body)
+            if step.action in ("create", "reclaim"):
+                if step.action == "create":
+                    pid = self.c.create_page(space_id, parent_id, r.node.title, r.body)
+                else:
+                    pid = step.page_id
+                    self.c.update_page(pid, title=r.node.title, parent_id=parent_id, body=r.body,
+                                       version=self.c.get_page(pid)["version"], message=message)
                 # Claim the page at once, with no hash: if the run dies before the end
                 # of this step, the next run still knows the page is ours and redoes it.
+                # (If it dies before this, the next run reclaims it; see _unclaimed_create.)
                 prop = self.c.set_property(pid, PROPERTY_KEY, {
                     "repo": self.repo, "key": step.key, "hash": "", "attachments": {},
                     "commit": commit, "created": True}, None)
-                self.log(f"created  {step.key} -> page {pid}")
+                self.log(f"{'created ' if step.action == 'create' else 'reclaimed'} {step.key} -> page {pid}")
             else:
                 m = by_id[step.page_id]
                 pid = m.id
@@ -323,6 +336,20 @@ class Publisher:
                 self.log(f"deleted  {step.key} (page {step.page_id})")
             elif step.action == "keep":
                 self.log(f"kept     {step.key} (page {step.page_id}): {step.reason}")
+
+    def _unclaimed_create(self, page_id: str, r: Rendered) -> bool:
+        """Is this a page an earlier run created but died before marking as its own?
+
+        Creating a page and marking it are two requests, and Confluence can't do
+        both at once. Only such a page qualifies: under the root page, never edited
+        since it was created, and with this publisher's banner linking to this very
+        source file. A page someone made by hand has none of that.
+        """
+        if not r.view_url or page_id not in getattr(self, "subtree", {}):
+            return False
+        if self.c.get_page(page_id)["version"] != 1:
+            return False
+        return f'href="{escape(r.view_url, quote=True)}"' in self.c.get_page_body(page_id)
 
     def _restrict(self, page_id: str, mark: dict) -> bool:
         """Restrict editing on a page this repo created and hasn't restricted yet.

@@ -41,3 +41,13 @@ def test_restrict_edits_adds_the_group_to_the_edit_restriction(monkeypatch):
     monkeypatch.setattr(c, "_call", lambda m, path, **kw: puts.append((m, path)))
     c.restrict_edits("10", "g-1")
     assert puts == [("PUT", "/wiki/rest/api/content/10/restriction/byOperation/update/byGroupId/g-1")]
+
+
+def test_calls_only_go_to_the_configured_site(monkeypatch):
+    c = Confluence("https://example.atlassian.net", "me@example.com", "token")
+    monkeypatch.setattr(c.http, "request", lambda *a, **kw: (_ for _ in ()).throw(AssertionError("sent")))
+    try:
+        c._call("GET", "https://evil.example/wiki/x")
+        raise AssertionError("expected a refusal")
+    except ValueError as e:
+        assert "not a path on the Confluence site" in str(e)
