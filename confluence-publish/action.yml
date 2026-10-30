@@ -108,7 +108,7 @@ runs:
           export MERMAID_OUT_DIR="$RUNNER_TEMP/mermaid"
           mkdir -p "$MERMAID_OUT_DIR"
           export MERMAID_PUPPETEER_CONFIG=/puppeteer-config.json  # the image's own: it knows its Chromium
-          export MERMAID_COMMAND="docker run --rm --network none --user $(id -u):$(id -g) -e HOME=/tmp -v $MERMAID_OUT_DIR:$MERMAID_OUT_DIR $MERMAID_IMAGE"
+          export MERMAID_COMMAND="docker run --rm --network none --user $(id -u):$(id -g) -e HOME=/tmp -v '$MERMAID_OUT_DIR:$MERMAID_OUT_DIR' $MERMAID_IMAGE"  # quoted: shlex-split by the renderer
         fi
         if [ "$CHECK_ONLY" = "true" ]; then
           uv run --quiet --locked --project "$GITHUB_ACTION_PATH" confluence-publish "${args[@]}" --check
