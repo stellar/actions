@@ -42,6 +42,10 @@ def main(argv: list[str] | None = None) -> int:
                    default=Path(os.environ["MERMAID_OUT_DIR"]) if os.environ.get("MERMAID_OUT_DIR") else None,
                    help="where diagrams are written, e.g. a folder mounted into a mermaid-cli "
                         "container (default: $MERMAID_OUT_DIR, or a new temporary folder)")
+    p.add_argument("--mermaid-puppeteer-config",
+                   default=os.environ.get("MERMAID_PUPPETEER_CONFIG") or None,
+                   help="Puppeteer config file for mermaid-cli, as mermaid-cli sees it (default: "
+                        "$MERMAID_PUPPETEER_CONFIG, or one that only turns off Chrome's sandbox)")
     p.add_argument("--title-prefix", default=os.environ.get("CONFLUENCE_TITLE_PREFIX", ""),
                    help='put this in front of every page title, e.g. "Horizon: " '
                         "(default: $CONFLUENCE_TITLE_PREFIX)")
@@ -65,7 +69,8 @@ def main(argv: list[str] | None = None) -> int:
         blob = f"{a.github_url.rstrip('/')}/{a.repo}/blob/{a.branch}{rel}"
 
     try:
-        mermaid = MermaidRenderer(a.mermaid_command, a.mermaid_out_dir) if a.mermaid else None
+        mermaid = (MermaidRenderer(a.mermaid_command, a.mermaid_out_dir, a.mermaid_puppeteer_config)
+                   if a.mermaid else None)
         if a.check:
             pages = render_all(a.docs, repo_blob_url=blob, mermaid=mermaid,
                                title_prefix=a.title_prefix)

@@ -43,3 +43,16 @@ def test_a_diagram_that_hangs_names_the_doc(tmp_path, monkeypatch):
     monkeypatch.setattr(mermaid.subprocess, "run", fake_run)
     with pytest.raises(ValueError, match=r"runbook\.md: a Mermaid diagram took over 180 seconds"):
         MermaidRenderer(out_dir=tmp_path)("graph TD; A-->B", "runbook.md")
+
+
+def test_a_given_puppeteer_config_is_passed_through(tmp_path, monkeypatch):
+    seen = []
+
+    def fake_run(cmd, **kw):
+        seen.append(cmd)
+        Path(cmd[cmd.index("-o") + 1]).write_bytes(b"png")
+
+    monkeypatch.setattr(mermaid.subprocess, "run", fake_run)
+    MermaidRenderer(out_dir=tmp_path, puppeteer_config="/puppeteer-config.json")("graph TD; A-->B")
+    assert seen[0][seen[0].index("-p") + 1] == "/puppeteer-config.json"
+    assert not (tmp_path / "puppeteer.json").exists()

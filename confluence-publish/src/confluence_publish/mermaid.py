@@ -45,13 +45,18 @@ def fingerprint(source: str) -> str:
 class MermaidRenderer:
     """Callable: Mermaid source in, path to a PNG out. Same source, same file name."""
 
-    def __init__(self, command: str = "mmdc", out_dir: Path | None = None):
+    def __init__(self, command: str = "mmdc", out_dir: Path | None = None,
+                 puppeteer_config: str | None = None):
         self.command = shlex.split(command)
         self.out_dir = out_dir or Path(tempfile.mkdtemp(prefix="mermaid-"))
         self.out_dir.mkdir(parents=True, exist_ok=True)
-        # Chrome's sandbox does not start on GitHub's Ubuntu runners.
-        self.puppeteer_config = self.out_dir / "puppeteer.json"
-        self.puppeteer_config.write_text(json.dumps({"args": ["--no-sandbox"]}))
+        if puppeteer_config:  # e.g. the mermaid-cli image's own, which knows its Chromium
+            self.puppeteer_config = puppeteer_config
+        else:
+            # Chrome's sandbox does not start on GitHub's Ubuntu runners.
+            path = self.out_dir / "puppeteer.json"
+            path.write_text(json.dumps({"args": ["--no-sandbox"]}))
+            self.puppeteer_config = str(path)
 
     def __call__(self, source: str, where: str = "") -> Path:
         name = f"mermaid-{fingerprint(source)[:16]}.png"
@@ -62,7 +67,7 @@ class MermaidRenderer:
         src.write_text(source)
         try:
             subprocess.run([*self.command, "-i", str(src), "-o", str(out), "-b", "white",
-                            "-s", "2", "-p", str(self.puppeteer_config)],
+                            "-s", "2", "-p", self.puppeteer_config],
                            check=True, capture_output=True, text=True, timeout=TIMEOUT,
                            env=renderer_env())
         except FileNotFoundError:
