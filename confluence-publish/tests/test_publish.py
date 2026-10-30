@@ -729,3 +729,22 @@ def test_a_title_prefix_counts_toward_the_limit(docs):
                                        "title: " + "x" * 250, 1))
     with pytest.raises(TitleError, match="Confluence allows 255"):
         render_all(docs, repo_blob_url=None, title_prefix="Horizon: ")
+
+
+@pytest.mark.parametrize("md, linked", [
+    ("See https://example.com/x?y=1 for more.", '<a href="https://example.com/x?y=1">'),
+    ("Mail sre@example.org", '<a href="mailto:sre@example.org">'),
+])
+def test_bare_urls_become_links(md, linked):
+    from confluence_publish.convert import Context, to_storage
+    ctx = Context(source="a.md", docs_root=SAMPLE.resolve(), titles_by_source={})
+    assert linked in to_storage(md, ctx, view_url=None, is_folder=False)
+
+
+@pytest.mark.parametrize("md", ["Edit README.md and setup.py", "`https://in.code`",
+                                "example.com"])
+def test_file_names_code_and_bare_domains_are_not_linked(md):
+    from confluence_publish.convert import Context, to_storage
+    ctx = Context(source="a.md", docs_root=SAMPLE.resolve(), titles_by_source={})
+    body = to_storage(md, ctx, view_url=None, is_folder=False)
+    assert "<a " not in body.split("</ac:structured-macro>", 1)[1]

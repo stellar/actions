@@ -116,7 +116,12 @@ def _resolve(ctx: Context, url: str) -> tuple[str, str]:
 
 
 def make_renderer(ctx: Context) -> MarkdownIt:
-    md = MarkdownIt("commonmark", {"xhtmlOut": True, "html": False}).enable(["table", "strikethrough"])
+    # linkify: bare URLs become links, as on GitHub. Only ones with a scheme
+    # (https://...) and email addresses: fuzzy matching would also link file names
+    # such as README.md and setup.py, since .md and .py are real top-level domains.
+    md = MarkdownIt("commonmark", {"xhtmlOut": True, "html": False, "linkify": True}).enable(
+        ["table", "strikethrough", "linkify"])
+    md.linkify.set({"fuzzy_link": False})
     rules = md.renderer.rules
 
     def fence(tokens, idx, options, env):

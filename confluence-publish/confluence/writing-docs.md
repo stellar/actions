@@ -46,7 +46,9 @@ repo's titles apart from everyone else's.
   heading.
 - A relative link to a file that isn't in the docs folder fails the run, so
   broken links are caught in the pull request.
-- Links to websites are left as they are.
+- Links to websites are left as they are. A bare `https://...` address or an
+  email address becomes a link on its own; `www.example.com` without
+  `https://` doesn't.
 
 ## Images
 
