@@ -66,6 +66,12 @@ workflows.
 | [rust-publish-dry-run-v2] | Run a package verification on all crates in a workspace in their published form that requires an explicit list of crates to publish (works with all repos). |
 | [rust-publish] | Workflow | Publish all crates in a workspace. |
 
+### Packaging
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [deb-s3-publish] | Workflow | Stages .deb packages in S3 and publishes them to an SDF APT repo through the deb-s3-publisher runner set. |
+
 ### Project Management
 
 | Name | Type | Description |
@@ -75,6 +81,7 @@ workflows.
 [@stellar]: https://github.com/stellar
 
 [rust-cache]: ./rust-cache
+[deb-s3-publish]: ./.github/workflows/deb-s3-publish.yml
 [rust-set-rust-version]: ./.github/workflows/rust-set-rust-version.yml
 [rust-bump-version]: ./.github/workflows/rust-bump-version.yml
 [rust-publish-dry-run]: ./.github/workflows/rust-publish-dry-run.yml
