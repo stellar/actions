@@ -800,3 +800,24 @@ def test_a_link_to_a_file_that_does_not_exist_is_an_error(tmp_path, href):
                   repo_blob_url="https://github.com/o/r/blob/main/docs")
     with pytest.raises(ValueError, match="doesn't exist"):
         to_storage(f"[x]({href})", ctx, view_url=None, is_folder=False)
+
+
+def test_a_link_to_markdown_outside_the_docs_points_at_github(tmp_path):
+    from confluence_publish.convert import Context, to_storage
+    docs = tmp_path / "repo" / "docs"
+    docs.mkdir(parents=True)
+    (tmp_path / "repo" / "README.md").write_text("# Repo\n")
+    ctx = Context(source="a.md", docs_root=docs.resolve(), titles_by_source={},
+                  repo_blob_url="https://github.com/o/r/blob/main/docs")
+    body = to_storage("[repo readme](../README.md)", ctx, view_url=None, is_folder=False)
+    assert '<a href="https://github.com/o/r/blob/main/README.md">' in body
+
+
+def test_an_unpublished_markdown_file_inside_the_docs_is_an_error(tmp_path):
+    from confluence_publish.convert import Context, to_storage
+    docs = tmp_path / "docs"
+    (docs / ".hidden").mkdir(parents=True)
+    (docs / ".hidden" / "notes.md").write_text("# Notes\n")
+    ctx = Context(source="a.md", docs_root=docs.resolve(), titles_by_source={})
+    with pytest.raises(ValueError, match="not in the docs"):
+        to_storage("[notes](.hidden/notes.md)", ctx, view_url=None, is_folder=False)

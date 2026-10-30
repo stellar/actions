@@ -171,7 +171,10 @@ def make_renderer(ctx: Context) -> MarkdownIt:
         fragment = ctx.anchors_by_source.get(path, {}).get(fragment.lower(), fragment)
         anchor = f' ac:anchor="{escape(fragment, quote=True)}"' if fragment else ""
         title = ctx.titles_by_source.get(path)
-        if title is None and path.endswith((".md",)):
+        if (title is None and path.endswith(".md")
+                and (ctx.docs_root / path).resolve().is_relative_to(ctx.docs_root)):
+            # Markdown inside the docs folder that isn't published (a hidden folder,
+            # a typo). Markdown elsewhere in the repo links to GitHub, like any file.
             raise ValueError(f"{ctx.source}: link {href!r} points to {path}, which is not in the docs")
         if title is not None:
             tok.meta["ac"] = True
