@@ -18,6 +18,9 @@ def test_renderer_id_matches_the_version_the_action_installs():
 def test_the_renderer_gets_no_credentials(tmp_path, monkeypatch):
     monkeypatch.setenv("CONFLUENCE_API_TOKEN", "secret")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setenv("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "secret")
+    monkeypatch.setenv("ACTIONS_ID_TOKEN_REQUEST_URL", "https://example.invalid")
+    monkeypatch.setenv("GITHUB_TOKEN", "secret")
     monkeypatch.setenv("PATH", "/usr/bin")
     seen = {}
 
@@ -28,7 +31,8 @@ def test_the_renderer_gets_no_credentials(tmp_path, monkeypatch):
     monkeypatch.setattr(mermaid.subprocess, "run", fake_run)
     MermaidRenderer(out_dir=tmp_path)("graph TD; A-->B")
     assert seen["PATH"] == "/usr/bin"
-    assert not [k for k in seen if k.startswith(("CONFLUENCE_", "AWS_"))]
+    assert not [k for k in seen if k.startswith(("CONFLUENCE_", "AWS_", "ACTIONS_"))]
+    assert "GITHUB_TOKEN" not in seen
 
 
 def test_a_diagram_that_hangs_names_the_doc(tmp_path, monkeypatch):

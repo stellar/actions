@@ -61,7 +61,9 @@ runs:
     - name: Install mermaid-cli
       if: inputs.mermaid == 'true'
       shell: bash
-      run: npm install -g @mermaid-js/mermaid-cli@11.17.0
+      # npm runs its packages' install scripts; they get no way to request an
+      # OIDC token, so they can't sign in to AWS as the publishing role.
+      run: env -u ACTIONS_ID_TOKEN_REQUEST_URL -u ACTIONS_ID_TOKEN_REQUEST_TOKEN npm install -g @mermaid-js/mermaid-cli@11.17.0
 
     # The credentials come back as this step's outputs, not as job environment
     # variables, so only the publish step below can use them, not the caller's

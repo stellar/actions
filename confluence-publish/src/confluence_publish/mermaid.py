@@ -21,12 +21,18 @@ RENDERER_ID = "mermaid-cli@11.17.0"
 TIMEOUT = 180  # seconds for one diagram
 
 # The renderer runs a browser on content from the docs; it needs no credentials.
-SECRET_PREFIXES = ("CONFLUENCE_", "AWS_")
+# ACTIONS_* includes ACTIONS_ID_TOKEN_REQUEST_URL/_TOKEN, which a job with
+# id-token: write gives every step: with them, a process could mint its own OIDC
+# token, assume the publishing role and read the Confluence secret.
+SECRET_PREFIXES = ("CONFLUENCE_", "AWS_", "ACTIONS_")
+SECRET_NAMES = {"GITHUB_TOKEN", "GH_TOKEN"}
 
 
 def renderer_env() -> dict[str, str]:
-    """This process's environment without the Confluence token or AWS credentials."""
-    return {k: v for k, v in os.environ.items() if not k.startswith(SECRET_PREFIXES)}
+    """This process's environment without credentials: the Confluence token, AWS
+    keys, or anything that can mint them (GitHub's OIDC request token)."""
+    return {k: v for k, v in os.environ.items()
+            if not k.startswith(SECRET_PREFIXES) and k not in SECRET_NAMES}
 
 
 def fingerprint(source: str) -> str:
