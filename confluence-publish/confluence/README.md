@@ -17,6 +17,8 @@ These pages are published by the publisher itself, from
 - [How publishing works](how-it-works.md): which pages it changes, and when.
 - [Security and access](security.md): the token, who can publish, and page restrictions.
 - [Troubleshooting](troubleshooting.md): what each error means and how to fix it.
+- [Design choices](design-choices.md): the opinions built into it, and why.
+- [Rendering examples](rendering-examples.md): what each kind of Markdown looks like here.
 
 ## At a glance
 

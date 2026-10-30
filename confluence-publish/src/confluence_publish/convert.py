@@ -181,7 +181,11 @@ def make_renderer(ctx: Context) -> MarkdownIt:
             tok.meta["ac"] = True
             return f"<ac:link{anchor}><ac:link-body>"
         if ctx.repo_blob_url and (ctx.docs_root / path).exists():
-            return f'<a href="{escape(ctx.repo_blob_url.rstrip("/") + "/" + path, quote=True)}">'
+            # A file elsewhere in the repo ("../action.yml"): link to it on GitHub,
+            # with the ".." resolved so the link reads cleanly.
+            url = urlsplit(ctx.repo_blob_url.rstrip("/") + "/" + path)
+            url = url._replace(path=posixpath.normpath(url.path)).geturl()
+            return f'<a href="{escape(url, quote=True)}">'
         return f'<a href="{escape(href, quote=True)}">'
 
     def link_close(tokens, idx, options, env):

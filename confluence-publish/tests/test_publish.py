@@ -769,3 +769,14 @@ def test_cli_turns_unexpected_errors_into_one_line(docs, monkeypatch, capsys):
 def test_annotation_file_names_are_escaped():
     from confluence_publish.cli import _escape_property
     assert _escape_property("a,b:c%d\ne.md") == "a%2Cb%3Ac%25d%0Ae.md"
+
+
+def test_a_link_to_a_repo_file_outside_the_docs_points_at_github(tmp_path):
+    from confluence_publish.convert import Context, to_storage
+    docs = tmp_path / "repo" / "docs"
+    docs.mkdir(parents=True)
+    (tmp_path / "repo" / "action.yml").write_text("name: x\n")
+    ctx = Context(source="a.md", docs_root=docs.resolve(), titles_by_source={},
+                  repo_blob_url="https://github.com/o/r/blob/main/docs")
+    body = to_storage("[the action](../action.yml)", ctx, view_url=None, is_folder=False)
+    assert '<a href="https://github.com/o/r/blob/main/action.yml">' in body
