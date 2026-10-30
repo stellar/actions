@@ -1,0 +1,69 @@
+name: confluence-publish
+
+on:
+  push:
+    branches: [main]
+    paths: ["confluence-publish/**", ".github/workflows/confluence-publish.yml"]
+  pull_request:
+    paths: ["confluence-publish/**", ".github/workflows/confluence-publish.yml"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only show what would change"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: confluence-publish
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv run pytest -q
+      - run: uv run confluence-publish tests/fixtures/docs --check
+
+  # Runs the action itself in check-only mode, which needs no credentials.
+  check-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./confluence-publish
+        with:
+          folder: confluence-publish/tests/fixtures/docs
+          check-only: "true"
+      - uses: ./confluence-publish
+        with:
+          folder: confluence-publish/confluence
+          title-prefix: "Docs Publisher: "
+          check-only: "true"
+
+  # Publishes the action's own docs (confluence-publish/confluence) with the action.
+  publish-docs:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # to sign in to AWS and read the Confluence token
+      contents: read
+    concurrency:
+      group: confluence-publish-docs
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./confluence-publish
+        with:
+          folder: confluence-publish/confluence
+          root-page: "5958467595"   # Ops Team > [Draft] Services > Confluence Docs Publisher
+          title-prefix: "Docs Publisher: "
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
