@@ -23,7 +23,10 @@ TIMEOUT = 180  # seconds for one diagram
 # The renderer runs a browser on content from the docs; it needs no credentials.
 # ACTIONS_* includes ACTIONS_ID_TOKEN_REQUEST_URL/_TOKEN, which a job with
 # id-token: write gives every step: with them, a process could mint its own OIDC
-# token, assume the publishing role and read the Confluence secret.
+# token, assume the publishing role and read the Confluence secret. This only
+# keeps them out of the renderer's own environment; a process running as the
+# same user could still read them from its parent's, which is why the action
+# runs mermaid-cli in a container instead.
 SECRET_PREFIXES = ("CONFLUENCE_", "AWS_", "ACTIONS_")
 SECRET_NAMES = {"GITHUB_TOKEN", "GH_TOKEN"}
 

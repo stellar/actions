@@ -57,13 +57,15 @@ runs:
     - name: Install uv
       uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
 
-    # Keep in step with RENDERER_ID in src/confluence_publish/mermaid.py.
-    - name: Install mermaid-cli
+    # Diagrams are drawn by mermaid-cli's official image, in a container with no
+    # network and no environment, that sees only the diagram folder. It can't
+    # reach this job's processes, its OIDC request token or the Confluence
+    # token. Keep the version in step with RENDERER_ID in
+    # src/confluence_publish/mermaid.py.
+    - name: Pull mermaid-cli
       if: inputs.mermaid == 'true'
       shell: bash
-      # npm runs its packages' install scripts; they get no way to request an
-      # OIDC token, so they can't sign in to AWS as the publishing role.
-      run: env -u ACTIONS_ID_TOKEN_REQUEST_URL -u ACTIONS_ID_TOKEN_REQUEST_TOKEN npm install -g @mermaid-js/mermaid-cli@11.17.0
+      run: docker pull --quiet minlag/mermaid-cli:11.17.0@sha256:a6fb0574dded4086888b5e38476899c9aff8963196f689f11a0f8fceee588ce1
 
     # The credentials come back as this step's outputs, not as job environment
     # variables, so only the publish step below can use them, not the caller's
@@ -93,6 +95,7 @@ runs:
         CHECK_ONLY: ${{ inputs.check-only }}
         CONFLUENCE_BASE_URL: ${{ inputs.base-url }}
         SECRET_ID: ${{ inputs.secret-id }}
+        MERMAID_IMAGE: minlag/mermaid-cli:11.17.0@sha256:a6fb0574dded4086888b5e38476899c9aff8963196f689f11a0f8fceee588ce1
         AWS_ACCESS_KEY_ID: ${{ steps.aws.outputs.aws-access-key-id }}
         AWS_SECRET_ACCESS_KEY: ${{ steps.aws.outputs.aws-secret-access-key }}
         AWS_SESSION_TOKEN: ${{ steps.aws.outputs.aws-session-token }}
@@ -100,7 +103,12 @@ runs:
       run: |
         set -euo pipefail
         args=("$FOLDER" --branch "$GITHUB_REF_NAME" --on-orphan "$ON_ORPHAN")
-        if [ "$MERMAID" = "true" ]; then args+=(--mermaid); fi
+        if [ "$MERMAID" = "true" ]; then
+          args+=(--mermaid)
+          export MERMAID_OUT_DIR="$RUNNER_TEMP/mermaid"
+          mkdir -p "$MERMAID_OUT_DIR"
+          export MERMAID_COMMAND="docker run --rm --network none --user $(id -u):$(id -g) -e HOME=/tmp -v $MERMAID_OUT_DIR:$MERMAID_OUT_DIR $MERMAID_IMAGE"
+        fi
         if [ "$CHECK_ONLY" = "true" ]; then
           uv run --quiet --locked --project "$GITHUB_ACTION_PATH" confluence-publish "${args[@]}" --check
           exit 0

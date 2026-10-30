@@ -11,7 +11,7 @@ ACTION = Path(__file__).parent.parent / "action.yml"
 
 
 def test_renderer_id_matches_the_version_the_action_installs():
-    installed = re.search(r"@mermaid-js/mermaid-cli@([\w.\-]+)", ACTION.read_text()).group(1)
+    installed = re.search(r"minlag/mermaid-cli:([\w.\-]+)@sha256:", ACTION.read_text()).group(1)
     assert RENDERER_ID == f"mermaid-cli@{installed}"
 
 
@@ -21,6 +21,7 @@ def test_the_renderer_gets_no_credentials(tmp_path, monkeypatch):
     monkeypatch.setenv("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "secret")
     monkeypatch.setenv("ACTIONS_ID_TOKEN_REQUEST_URL", "https://example.invalid")
     monkeypatch.setenv("GITHUB_TOKEN", "secret")
+    monkeypatch.setenv("GH_TOKEN", "secret")
     monkeypatch.setenv("PATH", "/usr/bin")
     seen = {}
 
@@ -32,7 +33,7 @@ def test_the_renderer_gets_no_credentials(tmp_path, monkeypatch):
     MermaidRenderer(out_dir=tmp_path)("graph TD; A-->B")
     assert seen["PATH"] == "/usr/bin"
     assert not [k for k in seen if k.startswith(("CONFLUENCE_", "AWS_", "ACTIONS_"))]
-    assert "GITHUB_TOKEN" not in seen
+    assert "GITHUB_TOKEN" not in seen and "GH_TOKEN" not in seen
 
 
 def test_a_diagram_that_hangs_names_the_doc(tmp_path, monkeypatch):

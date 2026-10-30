@@ -38,6 +38,10 @@ def main(argv: list[str] | None = None) -> int:
                         "are shown as code")
     p.add_argument("--mermaid-command", default=os.environ.get("MERMAID_COMMAND", "mmdc"),
                    help="how to run mermaid-cli (default: mmdc, or $MERMAID_COMMAND)")
+    p.add_argument("--mermaid-out-dir", type=Path,
+                   default=Path(os.environ["MERMAID_OUT_DIR"]) if os.environ.get("MERMAID_OUT_DIR") else None,
+                   help="where diagrams are written, e.g. a folder mounted into a mermaid-cli "
+                        "container (default: $MERMAID_OUT_DIR, or a new temporary folder)")
     p.add_argument("--title-prefix", default=os.environ.get("CONFLUENCE_TITLE_PREFIX", ""),
                    help='put this in front of every page title, e.g. "Horizon: " '
                         "(default: $CONFLUENCE_TITLE_PREFIX)")
@@ -61,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
         blob = f"{a.github_url.rstrip('/')}/{a.repo}/blob/{a.branch}{rel}"
 
     try:
-        mermaid = MermaidRenderer(a.mermaid_command) if a.mermaid else None
+        mermaid = MermaidRenderer(a.mermaid_command, a.mermaid_out_dir) if a.mermaid else None
         if a.check:
             pages = render_all(a.docs, repo_blob_url=blob, mermaid=mermaid,
                                title_prefix=a.title_prefix)
