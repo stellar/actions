@@ -17,6 +17,7 @@ import yaml
 
 INDEX_NAMES = ("README.md", "index.md")
 ROOT_KEY = "."  # the docs folder itself, published into the root page
+MAX_TITLE = 255  # Confluence's limit
 FRONT_MATTER = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
 H1 = re.compile(r"^# +(.+?)\s*#*\s*$", re.MULTILINE)
 
@@ -93,6 +94,17 @@ def pretty(name: str) -> str:
     return words[:1].upper() + words[1:]
 
 
+def _index(folder: Path, root: Path) -> Path | None:
+    """The folder's own page file, if it has one. Both names at once is an error,
+    or one of them would be silently left out."""
+    found = [folder / n for n in INDEX_NAMES if (folder / n).is_file()]
+    if len(found) > 1:
+        rel = found[1].relative_to(root).as_posix()
+        raise TitleError(f"{rel}: this folder has both README.md and index.md, and only one "
+                         "can be the folder's page. Merge them into one.", rel)
+    return found[0] if found else None
+
+
 def _check_links(root: Path) -> None:
     """Only publish what is in the docs folder: no symlinks that lead out of it,
     and no symlinked folders (which could also loop back on themselves)."""
@@ -128,7 +140,7 @@ def build_tree(root: Path, title_prefix: str = "", root_title: str | None = None
             if entry.is_dir():
                 if not any(entry.rglob("*.md")):
                     continue
-                index = next((entry / n for n in INDEX_NAMES if (entry / n).is_file()), None)
+                index = _index(entry, root)
                 if index:
                     meta, text = split_front_matter(index.read_text())
                     title, body, title_from = take_title(text, meta, pretty(entry.name))
@@ -150,7 +162,7 @@ def build_tree(root: Path, title_prefix: str = "", root_title: str | None = None
                 if parent:
                     nodes[parent].children.append(key)
 
-    index = next((root / n for n in INDEX_NAMES if (root / n).is_file()), None)
+    index = _index(root, root)
     if index:
         # The root page keeps its own title unless front matter sets one: a heading
         # alone never renames a page that someone created by hand.
@@ -164,6 +176,15 @@ def build_tree(root: Path, title_prefix: str = "", root_title: str | None = None
     add_folder(root, None)
     seen: dict[str, Node] = {}
     for node in nodes.values():
+        # Confluence would refuse these part way through a publish; catch them now.
+        if not node.title.strip():
+            raise TitleError(f"{node.file} has an empty title. To fix, {node.how_to_retitle()}.",
+                             node.file)
+        if len(node.title) > MAX_TITLE:
+            raise TitleError(
+                f"{node.file} would be titled {node.title[:60]!r}..., which is {len(node.title)} "
+                f"characters; Confluence allows {MAX_TITLE}. To fix, {node.how_to_retitle()}.",
+                node.file)
         other = seen.get(node.title.lower())
         if other:
             raise TitleError(

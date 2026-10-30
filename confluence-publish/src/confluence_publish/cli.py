@@ -90,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
         if isinstance(e, TitleError) and os.environ.get("GITHUB_ACTIONS") == "true":
             # Shows the error on the file in GitHub: in the run summary and on the commit.
             path = os.path.relpath(a.docs / e.file).replace(os.sep, "/")
-            print(f"::error file={path},title=Confluence page title clash::{_escape(str(e))}")
+            print(f"::error file={path},title=Confluence page title::{_escape(str(e))}")
         return 1
 
 

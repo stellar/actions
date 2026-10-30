@@ -20,6 +20,13 @@ titles in two commits."**
 Two docs swapped titles, or a doc took the title of one you removed. Do it in
 two commits: first give one doc a temporary title, then the final one.
 
+**"…has an empty title"** or **"…Confluence allows 255"**
+A title is blank, or too long once `title-prefix` is added. Change the title
+the error points at.
+
+**"…has both README.md and index.md…"**
+Only one file can be a folder's own page. Merge them into one.
+
 **"…would replace the content of the root page…"**
 The root page has hand-written content, and `adopt-root` is off. Turn it on
 for one run, or remove the top-level `README.md` to leave the root page alone.

@@ -398,7 +398,7 @@ def test_cli_marks_the_file_in_github_actions(docs, monkeypatch, capsys):
     assert main(["docs", "--check"]) == 1
     out = capsys.readouterr().out
     assert out.startswith("::error file=docs/guides/")
-    assert "title=Confluence page title clash::" in out
+    assert "title=Confluence page title::" in out
 
 
 # -- the root page: README.md at the top of the docs folder ----------------------
@@ -701,3 +701,31 @@ def test_a_copy_under_a_removed_folder_keeps_the_folder_page(docs):
     run(fake, docs, root, on_orphan="delete")
     folder = live(fake).get("Runbooks (docs-publisher test)")
     assert folder and not fake.pages[copy]["trashed"]
+
+
+def test_a_folder_with_both_readme_and_index_is_refused(docs):
+    (docs / "runbooks" / "index.md").write_text("# Runbooks index\n")
+    with pytest.raises(TitleError, match="both README.md and index.md") as e:
+        render_all(docs, repo_blob_url=None)
+    assert e.value.file == "runbooks/index.md"
+
+
+@pytest.mark.parametrize("title, match", [('"   "', "empty title"),
+                                          ("x" * 256, "Confluence allows 255")])
+def test_a_blank_or_overlong_title_fails_before_publishing(docs, title, match):
+    f = docs / "getting-started.md"
+    f.write_text(f.read_text().replace("title: Getting started (docs-publisher test)",
+                                       f"title: {title}", 1))
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    with pytest.raises(TitleError, match=match) as e:
+        run(fake, docs, root)
+    assert e.value.file == "getting-started.md" and fake.calls == []
+
+
+def test_a_title_prefix_counts_toward_the_limit(docs):
+    f = docs / "getting-started.md"
+    f.write_text(f.read_text().replace("title: Getting started (docs-publisher test)",
+                                       "title: " + "x" * 250, 1))
+    with pytest.raises(TitleError, match="Confluence allows 255"):
+        render_all(docs, repo_blob_url=None, title_prefix="Horizon: ")
