@@ -1,0 +1,4 @@
+self-hosted-runner:
+  # Runner set labels used by reusable workflows here (stellar/kube kube001-prd-eks gha.yaml)
+  labels:
+    - deb-s3-publisher
