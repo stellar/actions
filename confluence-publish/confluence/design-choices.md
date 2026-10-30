@@ -50,5 +50,5 @@ for those problems, nothing. Errors point at the file to change.
 
 Docs are CommonMark with tables, strikethrough and links, the same Markdown
 GitHub shows. Mermaid diagrams are the one addition, because Confluence can't
-draw them. See [Rendering examples](rendering-examples.md) for everything that
+draw them. See [Rendering examples](examples/rendering-examples.md) for everything that
 renders, and what doesn't.

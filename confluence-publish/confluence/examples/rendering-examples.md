@@ -26,11 +26,12 @@ setup.py stay plain text.
 
 ## Links
 
-- To another doc: [Writing docs](writing-docs.md)
-- To a heading in another doc: [how titles work](writing-docs.md#titles)
+- To another doc: [Writing docs](../writing-docs.md)
+- To a heading in another doc: [how titles work](../writing-docs.md#titles)
 - To a heading on this page: [the diagrams below](#diagrams)
+- To a folder's page: [Page nesting](page-nesting/README.md)
 - To a file in the repo that isn't a doc, which links to it on GitHub:
-  [the action's definition](../action.yml)
+  [the action's definition](../../action.yml)
 - To a website: [Stellar](https://stellar.org)
 
 ## Tables

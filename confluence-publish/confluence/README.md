@@ -18,7 +18,8 @@ These pages are published by the publisher itself, from
 - [Security and access](security.md): the token, who can publish, and page restrictions.
 - [Troubleshooting](troubleshooting.md): what each error means and how to fix it.
 - [Design choices](design-choices.md): the opinions built into it, and why.
-- [Rendering examples](rendering-examples.md): what each kind of Markdown looks like here.
+- [Examples](examples/README.md): what each kind of Markdown looks like here, and how
+  folders become nested pages.
 
 ## At a glance
 
