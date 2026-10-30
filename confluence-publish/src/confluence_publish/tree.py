@@ -18,6 +18,7 @@ import yaml
 INDEX_NAMES = ("README.md", "index.md")
 ROOT_KEY = "."  # the docs folder itself, published into the root page
 MAX_TITLE = 255  # Confluence's limit
+CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 FRONT_MATTER = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
 H1 = re.compile(r"^# +(.+?)\s*#*\s*$", re.MULTILINE)
 
@@ -180,6 +181,10 @@ def build_tree(root: Path, title_prefix: str = "", root_title: str | None = None
         if not node.title.strip():
             raise TitleError(f"{node.file} has an empty title. To fix, {node.how_to_retitle()}.",
                              node.file)
+        if CONTROL.search(node.title):
+            # A line break would also let a title start a GitHub workflow command in the log.
+            raise TitleError(f"{node.file} has a line break or other control character in its "
+                             f"title. To fix, {node.how_to_retitle()}.", node.file)
         if len(node.title) > MAX_TITLE:
             raise TitleError(
                 f"{node.file} would be titled {node.title[:60]!r}..., which is {len(node.title)} "

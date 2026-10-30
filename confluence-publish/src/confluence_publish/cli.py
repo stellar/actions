@@ -90,13 +90,22 @@ def main(argv: list[str] | None = None) -> int:
         if isinstance(e, TitleError) and os.environ.get("GITHUB_ACTIONS") == "true":
             # Shows the error on the file in GitHub: in the run summary and on the commit.
             path = os.path.relpath(a.docs / e.file).replace(os.sep, "/")
-            print(f"::error file={path},title=Confluence page title::{_escape(str(e))}")
+            print(f"::error file={_escape_property(path)},title=Confluence page title::"
+                  f"{_escape(str(e))}")
+        return 1
+    except Exception as e:  # anything unexpected: a network error, a diagram timing out
+        print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
         return 1
 
 
 def _escape(text: str) -> str:
     """Escape a message for a GitHub Actions workflow command."""
     return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def _escape_property(text: str) -> str:
+    """Escape a workflow command property value (file=...), which also ends at ':' or ','."""
+    return _escape(text).replace(":", "%3A").replace(",", "%2C")
 
 
 if __name__ == "__main__":

@@ -748,3 +748,24 @@ def test_file_names_code_and_bare_domains_are_not_linked(md):
     ctx = Context(source="a.md", docs_root=SAMPLE.resolve(), titles_by_source={})
     body = to_storage(md, ctx, view_url=None, is_folder=False)
     assert "<a " not in body.split("</ac:structured-macro>", 1)[1]
+
+
+def test_a_title_with_a_line_break_is_refused(docs):
+    (docs / "evil.md").write_text('---\ntitle: "Fine\\n::warning::injected"\n---\nbody\n')
+    with pytest.raises(TitleError, match="line break or other control character"):
+        render_all(docs, repo_blob_url=None)
+
+
+def test_cli_turns_unexpected_errors_into_one_line(docs, monkeypatch, capsys):
+    from confluence_publish import cli
+    def boom(*a, **kw):
+        raise ConnectionError("network unreachable")
+    monkeypatch.setattr(cli, "render_all", boom)
+    monkeypatch.chdir(docs.parent)
+    assert cli.main(["docs", "--check"]) == 1
+    assert capsys.readouterr().err == "error: ConnectionError: network unreachable\n"
+
+
+def test_annotation_file_names_are_escaped():
+    from confluence_publish.cli import _escape_property
+    assert _escape_property("a,b:c%d\ne.md") == "a%2Cb%3Ac%25d%0Ae.md"

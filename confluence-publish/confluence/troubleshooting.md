@@ -20,9 +20,10 @@ titles in two commits."**
 Two docs swapped titles, or a doc took the title of one you removed. Do it in
 two commits: first give one doc a temporary title, then the final one.
 
-**"…has an empty title"** or **"…Confluence allows 255"**
-A title is blank, or too long once `title-prefix` is added. Change the title
-the error points at.
+**"…has an empty title"**, **"…Confluence allows 255"** or **"…line break or
+other control character in its title"**
+A title is blank, too long once `title-prefix` is added, or has a line break
+in it. Change the title the error points at.
 
 **"…has both README.md and index.md…"**
 Only one file can be a folder's own page. Merge them into one.
