@@ -21,12 +21,21 @@ RENDERER_ID = "mermaid-cli@11.17.0"
 TIMEOUT = 180  # seconds for one diagram
 
 # The renderer runs a browser on content from the docs; it needs no credentials.
-SECRET_PREFIXES = ("CONFLUENCE_", "AWS_")
+# ACTIONS_* includes ACTIONS_ID_TOKEN_REQUEST_URL/_TOKEN, which a job with
+# id-token: write gives every step: with them, a process could mint its own OIDC
+# token, assume the publishing role and read the Confluence secret. This only
+# keeps them out of the renderer's own environment; a process running as the
+# same user could still read them from its parent's, which is why the action
+# runs mermaid-cli in a container instead.
+SECRET_PREFIXES = ("CONFLUENCE_", "AWS_", "ACTIONS_")
+SECRET_NAMES = {"GITHUB_TOKEN", "GH_TOKEN"}
 
 
 def renderer_env() -> dict[str, str]:
-    """This process's environment without the Confluence token or AWS credentials."""
-    return {k: v for k, v in os.environ.items() if not k.startswith(SECRET_PREFIXES)}
+    """This process's environment without credentials: the Confluence token, AWS
+    keys, or anything that can mint them (GitHub's OIDC request token)."""
+    return {k: v for k, v in os.environ.items()
+            if not k.startswith(SECRET_PREFIXES) and k not in SECRET_NAMES}
 
 
 def fingerprint(source: str) -> str:
@@ -36,13 +45,18 @@ def fingerprint(source: str) -> str:
 class MermaidRenderer:
     """Callable: Mermaid source in, path to a PNG out. Same source, same file name."""
 
-    def __init__(self, command: str = "mmdc", out_dir: Path | None = None):
+    def __init__(self, command: str = "mmdc", out_dir: Path | None = None,
+                 puppeteer_config: str | None = None):
         self.command = shlex.split(command)
         self.out_dir = out_dir or Path(tempfile.mkdtemp(prefix="mermaid-"))
         self.out_dir.mkdir(parents=True, exist_ok=True)
-        # Chrome's sandbox does not start on GitHub's Ubuntu runners.
-        self.puppeteer_config = self.out_dir / "puppeteer.json"
-        self.puppeteer_config.write_text(json.dumps({"args": ["--no-sandbox"]}))
+        if puppeteer_config:  # e.g. the mermaid-cli image's own, which knows its Chromium
+            self.puppeteer_config = puppeteer_config
+        else:
+            # Chrome's sandbox does not start on GitHub's Ubuntu runners.
+            path = self.out_dir / "puppeteer.json"
+            path.write_text(json.dumps({"args": ["--no-sandbox"]}))
+            self.puppeteer_config = str(path)
 
     def __call__(self, source: str, where: str = "") -> Path:
         name = f"mermaid-{fingerprint(source)[:16]}.png"
@@ -53,7 +67,7 @@ class MermaidRenderer:
         src.write_text(source)
         try:
             subprocess.run([*self.command, "-i", str(src), "-o", str(out), "-b", "white",
-                            "-s", "2", "-p", str(self.puppeteer_config)],
+                            "-s", "2", "-p", self.puppeteer_config],
                            check=True, capture_output=True, text=True, timeout=TIMEOUT,
                            env=renderer_env())
         except FileNotFoundError:
