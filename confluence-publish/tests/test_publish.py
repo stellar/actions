@@ -883,11 +883,13 @@ def test_a_readme_is_never_published_into_a_page_another_run_publishes(docs, tmp
 def test_markers_from_before_root_was_recorded_are_still_ours(docs):
     fake = FakeConfluence()
     root = fake.add("Parent page")
+    (docs / "README.md").write_text("# Docs\n\nThe root page.\n")
     run(fake, docs, root)
+    assert (root, PROPERTY_KEY) in fake.props
     for (pid, key), prop in fake.props.items():
         if key == PROPERTY_KEY:
             prop["value"].pop("root", None)
     plan = run(fake, docs, root, on_orphan="delete")
     assert {s.action for s in plan.steps} == {"unchanged"}
     assert all(p["value"]["root"] == root for (pid, key), p in fake.props.items()
-               if key == PROPERTY_KEY and pid != root)
+               if key == PROPERTY_KEY)

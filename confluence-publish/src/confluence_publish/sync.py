@@ -290,6 +290,9 @@ class Publisher:
             # Content is current; still put back images removed or damaged since.
             if r.attachments:
                 self._sync_attachments(self.root, r, prop["value"].get("attachments", {}))
+            if prop["value"].get("root") != self.root:  # older markers lack it
+                self.c.set_property(self.root, PROPERTY_KEY,
+                                    dict(prop["value"], root=self.root), prop)
             return
         self.c.update_page(self.root, title=r.node.title, parent_id=None, body=r.body,
                            version=root["version"],
