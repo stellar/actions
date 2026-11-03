@@ -1,8 +1,10 @@
 """Work out what to change in Confluence, then change it.
 
 The publisher owns everything under its root page and nothing outside it.
-Pages it publishes carry a content property (PROPERTY_KEY) naming the repo and
-file; only those are updated, moved or trashed as the repo changes. Other pages
+Pages it publishes carry a content property (PROPERTY_KEY) naming the repo,
+file and root page; only those are updated, moved or trashed as the repo
+changes. A page published from another root page (another workflow nested
+under one of these pages, even from the same repo) counts as someone else's. Other pages
 under the root are left alone, unless one has the same title as a doc, in
 which case the doc is published into it. Pages outside the root are never
 changed.
@@ -145,6 +147,10 @@ class Publisher:
                 prop = self.c.get_property(child["id"], PROPERTY_KEY)
                 if not prop or prop["value"].get("repo") != self.repo:
                     continue
+                # Published from another root page under this one: another workflow's.
+                # Markers from before "root" was recorded belong to whoever finds them.
+                if prop["value"].get("root", self.root) != self.root:
+                    continue
                 key = prop["value"]["key"]
                 if key in found:  # two pages claim one file (a copied page): flag the other
                     key = f"{key}{DUPLICATE}{child['id']}"
@@ -240,6 +246,12 @@ class Publisher:
             return None  # no README.md at the top: the root page is left alone
         prop = self.c.get_property(self.root, PROPERTY_KEY)
         owner = (prop or {}).get("value", {}).get("repo")
+        if owner and prop["value"].get("key") != ROOT_KEY:
+            raise TitleError(
+                f"{r.node.file} would be published into the root page (id {self.root}), but "
+                f"that page is itself published by {owner} from {prop['value'].get('key')}, "
+                f"which would overwrite it. Pages can go under it, but not {r.node.file}: "
+                f"rename it so it becomes a page of its own.", r.node.file)
         if owner and owner != self.repo:
             raise TitleError(
                 f"{r.node.file} would be published into the root page (id {self.root}), but "
@@ -285,7 +297,7 @@ class Publisher:
         self.log(f"{step.action:9}{ROOT_KEY} -> root page {self.root}")
         self._sync_attachments(self.root, r, (prop or {}).get("value", {}).get("attachments", {}))
         self.c.set_property(self.root, PROPERTY_KEY, {
-            "repo": self.repo, "key": ROOT_KEY, "hash": r.hash,
+            "repo": self.repo, "key": ROOT_KEY, "root": self.root, "hash": r.hash,
             "attachments": r.attachment_hashes, "commit": commit}, prop)
 
 
@@ -312,7 +324,8 @@ class Publisher:
                 # of this step, the next run still knows the page is ours and redoes it.
                 # (If it dies before this, the next run reclaims it; see _unclaimed_create.)
                 prop = self.c.set_property(pid, PROPERTY_KEY, {
-                    "repo": self.repo, "key": step.key, "hash": "", "attachments": {},
+                    "repo": self.repo, "key": step.key, "root": self.root, "hash": "",
+                    "attachments": {},
                     "commit": commit, "created": True}, None)
                 self.log(f"{'created ' if step.action == 'create' else 'reclaimed'} {step.key} -> page {pid}")
             else:
@@ -323,9 +336,11 @@ class Publisher:
                     # Content is current; still put back images removed or damaged since.
                     if r.attachments:
                         self._sync_attachments(pid, r, m.prop["value"].get("attachments", {}))
+                    value = dict(m.prop["value"], root=self.root)  # older markers lack it
                     if self._restrict(pid, m.prop["value"]):
-                        self.c.set_property(pid, PROPERTY_KEY,
-                                            {**m.prop["value"], "restricted": True}, m.prop)
+                        value["restricted"] = True
+                    if value != m.prop["value"]:
+                        self.c.set_property(pid, PROPERTY_KEY, value, m.prop)
                     continue
                 self.c.update_page(pid, title=r.node.title, parent_id=parent_id, body=r.body,
                                    version=m.version, message=message)
@@ -337,7 +352,7 @@ class Publisher:
             restricted = self._restrict(pid, old) or old.get("restricted", False)
             # Written last, so a run that dies half way redoes this page next time.
             self.c.set_property(pid, PROPERTY_KEY, {
-                "repo": self.repo, "key": step.key, "hash": r.hash,
+                "repo": self.repo, "key": step.key, "root": self.root, "hash": r.hash,
                 "attachments": r.attachment_hashes, "commit": commit,
                 "created": old.get("created", False), "restricted": restricted}, prop)
 
