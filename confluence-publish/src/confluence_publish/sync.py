@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 
 import hashlib
+from urllib.parse import quote
 import json
 from html import escape
 from dataclasses import dataclass, field
@@ -100,8 +101,12 @@ def render_all(docs: Path, *, repo_blob_url: str | None, source_url: str | None 
                       titles_by_source=titles, repo_blob_url=repo_blob_url,
                       anchors_by_source=anchors, mermaid=mermaid)
         # source_url: the docs were generated from one file, which every banner links to.
-        view = source_url or (f"{repo_blob_url.rstrip('/')}/{node.source or key}"
-                              if repo_blob_url else None)
+        # The fragment keeps each page's link unique: _unclaimed_create matches on it.
+        if source_url:
+            view = f"{source_url.split('#')[0]}#{quote(node.source or key)}"
+        else:
+            view = (f"{repo_blob_url.rstrip('/')}/{node.source or key}"
+                    if repo_blob_url else None)
         body = to_storage(node.markdown, ctx, view_url=view, is_folder=node.is_folder)
         att_hashes = {name: ctx.attachment_fingerprints.get(name) or _sha(p.read_bytes())
                       for name, p in sorted(ctx.attachments.items())}

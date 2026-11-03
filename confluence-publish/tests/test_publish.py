@@ -40,9 +40,10 @@ def test_source_url_links_every_banner_to_one_file(docs):
     url = "https://github.com/octo/data/blob/main/catalog.tfvars"
     pages = render_all(docs, repo_blob_url="https://github.com/octo/docs/blob/main/docs",
                        source_url=url)
-    for r in pages.values():
-        assert r.view_url == url and f'href="{url}"' in r.body
+    for key, r in pages.items():
+        assert r.view_url == f"{url}#{r.node.source or key}" and f'href="{r.view_url}"' in r.body
         assert "github.com/octo/docs/blob/main/docs/" + (r.node.source or "x") not in r.body
+    assert len({r.view_url for r in pages.values()}) == len(pages)  # unique: reclaim matches on it
 
 
 def test_conversion_details(docs):
