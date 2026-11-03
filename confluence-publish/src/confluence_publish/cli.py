@@ -38,6 +38,14 @@ def main(argv: list[str] | None = None) -> int:
                         "are shown as code")
     p.add_argument("--mermaid-command", default=os.environ.get("MERMAID_COMMAND", "mmdc"),
                    help="how to run mermaid-cli (default: mmdc, or $MERMAID_COMMAND)")
+    p.add_argument("--mermaid-out-dir", type=Path,
+                   default=Path(os.environ["MERMAID_OUT_DIR"]) if os.environ.get("MERMAID_OUT_DIR") else None,
+                   help="where diagrams are written, e.g. a folder mounted into a mermaid-cli "
+                        "container (default: $MERMAID_OUT_DIR, or a new temporary folder)")
+    p.add_argument("--mermaid-puppeteer-config",
+                   default=os.environ.get("MERMAID_PUPPETEER_CONFIG") or None,
+                   help="Puppeteer config file for mermaid-cli, as mermaid-cli sees it (default: "
+                        "$MERMAID_PUPPETEER_CONFIG, or one that only turns off Chrome's sandbox)")
     p.add_argument("--title-prefix", default=os.environ.get("CONFLUENCE_TITLE_PREFIX", ""),
                    help='put this in front of every page title, e.g. "Horizon: " '
                         "(default: $CONFLUENCE_TITLE_PREFIX)")
@@ -48,6 +56,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="ID of the only Confluence group that may edit the pages the publisher "
                         "creates; the account must be in it (default: "
                         "$CONFLUENCE_EDITORS_GROUP_ID, or no restriction)")
+    p.add_argument("--source-url", default=os.environ.get("CONFLUENCE_SOURCE_URL") or None,
+                   help="link every page's banner here instead of to its own file, for docs "
+                        "generated during the run (default: $CONFLUENCE_SOURCE_URL)")
     p.add_argument("--check", action="store_true",
                    help="only convert the docs and report problems; needs no credentials")
     a = p.parse_args(argv)
@@ -61,9 +72,10 @@ def main(argv: list[str] | None = None) -> int:
         blob = f"{a.github_url.rstrip('/')}/{a.repo}/blob/{a.branch}{rel}"
 
     try:
-        mermaid = MermaidRenderer(a.mermaid_command) if a.mermaid else None
+        mermaid = (MermaidRenderer(a.mermaid_command, a.mermaid_out_dir, a.mermaid_puppeteer_config)
+                   if a.mermaid else None)
         if a.check:
-            pages = render_all(a.docs, repo_blob_url=blob, mermaid=mermaid,
+            pages = render_all(a.docs, repo_blob_url=blob, source_url=a.source_url, mermaid=mermaid,
                                title_prefix=a.title_prefix)
             for key, r in pages.items():
                 print(f"ok  {key}  ->  {r.node.title!r}" + (f"  (+{len(r.attachments)} attachments)" if r.attachments else ""))
@@ -83,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
         publish(client, a.docs, root_page_id=a.root_page, repo=a.repo, repo_blob_url=blob,
                 dry_run=a.dry_run, on_orphan=a.on_orphan, commit=os.environ.get("GITHUB_SHA", ""),
                 mermaid=mermaid, title_prefix=a.title_prefix, adopt_root=a.adopt_root,
-                editors_group_id=a.editors_group_id)
+                editors_group_id=a.editors_group_id, source_url=a.source_url)
         return 0
     except (ValueError, ConfluenceError) as e:
         print(f"error: {e}", file=sys.stderr)

@@ -46,6 +46,7 @@ To check docs on pull requests without publishing (no credentials needed):
 | `folder` | `confluence` | Folder of Markdown to publish. |
 | `root-page` | | ID of the Confluence page to publish under. Required unless `check-only`. |
 | `title-prefix` | `""` | Put in front of every page title, e.g. `"Horizon: "`. |
+| `source-url` | `""` | Link every page's banner here instead of to its own file. For a folder generated during the run, e.g. from a data file: link the file it came from. |
 | `on-orphan` | `delete` | A page whose file is gone: `delete` (move to the trash) or `keep`. |
 | `dry-run` | `false` | Show what would change, change nothing. |
 | `adopt-root` | `true` | Publish the folder's `README.md` into a root page that has content this publisher did not write. Set `false` to refuse to overwrite a hand-written root page. |
