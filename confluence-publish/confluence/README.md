@@ -16,6 +16,7 @@ These pages are published by the publisher itself, from
 - [Writing docs](writing-docs.md): folders, titles, links, images and diagrams.
 - [How publishing works](how-it-works.md): which pages it changes, and when.
 - [Security and access](security.md): the token, who can publish, and page restrictions.
+- [Service catalog pages](service-catalog.md): pages for every service and team, from the catalog.
 - [Troubleshooting](troubleshooting.md): what each error means and how to fix it.
 - [Design choices](design-choices.md): the opinions built into it, and why.
 - [Examples](examples/README.md): what each kind of Markdown looks like here, and how

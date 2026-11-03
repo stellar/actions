@@ -224,13 +224,12 @@ def make_renderer(ctx: Context) -> MarkdownIt:
     return md
 
 
-def banner(view_url: str | None) -> str:
-    if view_url:
-        where = f'<a href="{escape(view_url, quote=True)}">its source file in GitHub</a>'
-    else:
-        where = "its source file in GitHub"
+def banner(view_url: str | None, generated_from: str | None = None) -> str:
+    what = generated_from or "its source file in GitHub"
+    where = f'<a href="{escape(view_url, quote=True)}">{escape(what)}</a>' if view_url else escape(what)
+    verb = "generated from" if generated_from else "published from"
     return ('<ac:structured-macro ac:name="info"><ac:rich-text-body>'
-            f"<p>This page is published from {where}. Edit it there: changes made here "
+            f"<p>This page is {verb} {where}. Edit it there: changes made here "
             "are overwritten the next time the docs are published.</p>"
             "</ac:rich-text-body></ac:structured-macro>\n")
 
@@ -239,10 +238,11 @@ CHILDREN_MACRO = ('<ac:structured-macro ac:name="children">'
                   '<ac:parameter ac:name="all">true</ac:parameter></ac:structured-macro>\n')
 
 
-def to_storage(markdown: str, ctx: Context, *, view_url: str | None, is_folder: bool) -> str:
+def to_storage(markdown: str, ctx: Context, *, view_url: str | None, is_folder: bool,
+               generated_from: str | None = None) -> str:
     """Render one page's body. Fills ctx.attachments with the images it uses."""
     md = make_renderer(ctx)
     body = md.render(markdown) if markdown.strip() else ""
     if is_folder:
         body += CHILDREN_MACRO
-    return banner(view_url) + body
+    return banner(view_url, generated_from) + body

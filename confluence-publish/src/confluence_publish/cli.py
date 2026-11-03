@@ -12,8 +12,10 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import tempfile
 from pathlib import Path
 
+from .catalog import generate as generate_catalog
 from .client import Confluence, ConfluenceError
 from .mermaid import MermaidRenderer
 from .sync import publish, render_all
@@ -23,7 +25,12 @@ from .tree import TitleError
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="confluence-publish", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("docs", type=Path, help="folder of Markdown to publish")
+    p.add_argument("docs", type=Path, nargs="?",
+                   help="folder of Markdown to publish (not with --service-catalog)")
+    p.add_argument("--service-catalog", type=Path,
+                   help="publish a page per service and per owning team, generated from this "
+                        "incident.io service catalog (a services.auto.tfvars file), instead "
+                        "of a folder of Markdown")
     p.add_argument("--root-page", help="id of the page to publish under; the folder's README.md "
                                        "becomes its content (see --adopt-root)")
     p.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY"),
@@ -52,18 +59,29 @@ def main(argv: list[str] | None = None) -> int:
                    help="only convert the docs and report problems; needs no credentials")
     a = p.parse_args(argv)
 
-    if not a.docs.is_dir():
-        p.error(f"{a.docs} is not a folder")
-    blob = None
+    if (a.docs is None) == (a.service_catalog is None):
+        p.error("give a docs folder or --service-catalog, not both")
+    source = a.service_catalog or a.docs
+    blob = source_url = generated_from = None
     if a.repo:
-        rel = os.path.relpath(a.docs.resolve(), Path.cwd()).replace(os.sep, "/")
+        rel = os.path.relpath(source.resolve(), Path.cwd()).replace(os.sep, "/")
         rel = "" if rel == "." else "/" + rel
         blob = f"{a.github_url.rstrip('/')}/{a.repo}/blob/{a.branch}{rel}"
+    if a.service_catalog:
+        if not a.service_catalog.is_file():
+            p.error(f"{a.service_catalog} is not a file")
+        source_url, generated_from, blob = blob, "the service catalog in GitHub", None
+        a.docs = Path(tempfile.mkdtemp(prefix="service-catalog-"))
+    elif not a.docs.is_dir():
+        p.error(f"{a.docs} is not a folder")
 
     try:
+        if a.service_catalog:
+            generate_catalog(a.service_catalog, a.docs)
         mermaid = MermaidRenderer(a.mermaid_command) if a.mermaid else None
         if a.check:
             pages = render_all(a.docs, repo_blob_url=blob, mermaid=mermaid,
+                               source_url=source_url, generated_from=generated_from,
                                title_prefix=a.title_prefix)
             for key, r in pages.items():
                 print(f"ok  {key}  ->  {r.node.title!r}" + (f"  (+{len(r.attachments)} attachments)" if r.attachments else ""))
@@ -83,13 +101,14 @@ def main(argv: list[str] | None = None) -> int:
         publish(client, a.docs, root_page_id=a.root_page, repo=a.repo, repo_blob_url=blob,
                 dry_run=a.dry_run, on_orphan=a.on_orphan, commit=os.environ.get("GITHUB_SHA", ""),
                 mermaid=mermaid, title_prefix=a.title_prefix, adopt_root=a.adopt_root,
-                editors_group_id=a.editors_group_id)
+                editors_group_id=a.editors_group_id, source_url=source_url,
+                generated_from=generated_from)
         return 0
     except (ValueError, ConfluenceError) as e:
         print(f"error: {e}", file=sys.stderr)
         if isinstance(e, TitleError) and os.environ.get("GITHUB_ACTIONS") == "true":
             # Shows the error on the file in GitHub: in the run summary and on the commit.
-            path = os.path.relpath(a.docs / e.file).replace(os.sep, "/")
+            path = os.path.relpath(a.service_catalog or a.docs / e.file).replace(os.sep, "/")
             print(f"::error file={_escape_property(path)},title=Confluence page title::"
                   f"{_escape(str(e))}")
         return 1

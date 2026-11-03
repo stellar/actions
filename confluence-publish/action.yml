@@ -10,6 +10,10 @@ inputs:
     description: 'ID of the Confluence page to publish under. Required unless check-only is true.'
     required: false
     default: ''
+  service-catalog:
+    description: 'Instead of folder, publish a page per service and per owning team, generated from this incident.io service catalog file (a services.auto.tfvars), relative to the repo root.'
+    required: false
+    default: ''
   title-prefix:
     description: 'Put in front of every page title, e.g. "Horizon: ".'
     required: false
@@ -81,6 +85,7 @@ runs:
       shell: bash
       env:
         FOLDER: ${{ inputs.folder }}
+        SERVICE_CATALOG: ${{ inputs.service-catalog }}
         ROOT_PAGE: ${{ inputs.root-page }}
         CONFLUENCE_TITLE_PREFIX: ${{ inputs.title-prefix }}
         ON_ORPHAN: ${{ inputs.on-orphan }}
@@ -97,7 +102,8 @@ runs:
         AWS_REGION: us-east-1
       run: |
         set -euo pipefail
-        args=("$FOLDER" --branch "$GITHUB_REF_NAME" --on-orphan "$ON_ORPHAN")
+        if [ -n "$SERVICE_CATALOG" ]; then args=(--service-catalog "$SERVICE_CATALOG"); else args=("$FOLDER"); fi
+        args+=(--branch "$GITHUB_REF_NAME" --on-orphan "$ON_ORPHAN")
         if [ "$MERMAID" = "true" ]; then args+=(--mermaid); fi
         if [ "$CHECK_ONLY" = "true" ]; then
           uv run --quiet --locked --project "$GITHUB_ACTION_PATH" confluence-publish "${args[@]}" --check

@@ -44,6 +44,7 @@ To check docs on pull requests without publishing (no credentials needed):
 | Input | Default | |
 | --- | --- | --- |
 | `folder` | `confluence` | Folder of Markdown to publish. |
+| `service-catalog` | | Instead of `folder`, publish pages generated from an incident.io service catalog file (see below). |
 | `root-page` | | ID of the Confluence page to publish under. Required unless `check-only`. |
 | `title-prefix` | `""` | Put in front of every page title, e.g. `"Horizon: "`. |
 | `on-orphan` | `delete` | A page whose file is gone: `delete` (move to the trash) or `keep`. |
@@ -104,6 +105,24 @@ pages it created are restricted, whether or not they changed.
   and its note links to that doc's source file. Nothing is duplicated.
 - Only files inside `folder` are published or uploaded: a symlink that leads
   out of it, or a symlinked folder, is an error.
+
+## Service catalog pages
+
+With `service-catalog: service-catalog/services.auto.tfvars`, the action
+publishes a page per service and per owning team, generated from the catalog
+during the run; no Markdown is committed. Change the catalog and the pages
+follow.
+
+- `Services` lists every service; each service page shows its owning team,
+  repositories, links, playbook and catalog ID.
+- `Teams` has a page per distinct `owning_team`, titled from its ID
+  (`wallet-eng` becomes "Wallet Eng (Team)"), listing the services it owns.
+- Pages are named by ID, so renaming a service keeps its page. Changing an ID
+  keeps it too if the name doesn't change in the same run.
+- A service removed from the catalog has its page trashed, unless pages the
+  publisher didn't create sit under it. People can add pages under generated
+  pages, and service repos can publish their docs there.
+- Each page's banner links to the catalog file.
 
 ## Development
 
