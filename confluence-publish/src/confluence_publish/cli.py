@@ -56,6 +56,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="ID of the only Confluence group that may edit the pages the publisher "
                         "creates; the account must be in it (default: "
                         "$CONFLUENCE_EDITORS_GROUP_ID, or no restriction)")
+    p.add_argument("--source-url", default=os.environ.get("CONFLUENCE_SOURCE_URL") or None,
+                   help="link every page's banner here instead of to its own file, for docs "
+                        "generated during the run (default: $CONFLUENCE_SOURCE_URL)")
     p.add_argument("--check", action="store_true",
                    help="only convert the docs and report problems; needs no credentials")
     a = p.parse_args(argv)
@@ -72,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
         mermaid = (MermaidRenderer(a.mermaid_command, a.mermaid_out_dir, a.mermaid_puppeteer_config)
                    if a.mermaid else None)
         if a.check:
-            pages = render_all(a.docs, repo_blob_url=blob, mermaid=mermaid,
+            pages = render_all(a.docs, repo_blob_url=blob, source_url=a.source_url, mermaid=mermaid,
                                title_prefix=a.title_prefix)
             for key, r in pages.items():
                 print(f"ok  {key}  ->  {r.node.title!r}" + (f"  (+{len(r.attachments)} attachments)" if r.attachments else ""))
@@ -92,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
         publish(client, a.docs, root_page_id=a.root_page, repo=a.repo, repo_blob_url=blob,
                 dry_run=a.dry_run, on_orphan=a.on_orphan, commit=os.environ.get("GITHUB_SHA", ""),
                 mermaid=mermaid, title_prefix=a.title_prefix, adopt_root=a.adopt_root,
-                editors_group_id=a.editors_group_id)
+                editors_group_id=a.editors_group_id, source_url=a.source_url)
         return 0
     except (ValueError, ConfluenceError) as e:
         print(f"error: {e}", file=sys.stderr)

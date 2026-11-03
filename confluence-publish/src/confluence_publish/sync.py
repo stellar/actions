@@ -77,8 +77,9 @@ def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def render_all(docs: Path, *, repo_blob_url: str | None, mermaid=None,
-               title_prefix: str = "", root_title: str | None = None) -> dict[str, Rendered]:
+def render_all(docs: Path, *, repo_blob_url: str | None, source_url: str | None = None,
+               mermaid=None, title_prefix: str = "",
+               root_title: str | None = None) -> dict[str, Rendered]:
     nodes = build_tree(docs, title_prefix, root_title)
     titles = {}
     for n in nodes.values():
@@ -98,8 +99,9 @@ def render_all(docs: Path, *, repo_blob_url: str | None, mermaid=None,
         ctx = Context(source=node.source or f"{key}/README.md", docs_root=docs.resolve(),
                       titles_by_source=titles, repo_blob_url=repo_blob_url,
                       anchors_by_source=anchors, mermaid=mermaid)
-        view = (f"{repo_blob_url.rstrip('/')}/{node.source or key}"
-                if repo_blob_url else None)
+        # source_url: the docs were generated from one file, which every banner links to.
+        view = source_url or (f"{repo_blob_url.rstrip('/')}/{node.source or key}"
+                              if repo_blob_url else None)
         body = to_storage(node.markdown, ctx, view_url=view, is_folder=node.is_folder)
         att_hashes = {name: ctx.attachment_fingerprints.get(name) or _sha(p.read_bytes())
                       for name, p in sorted(ctx.attachments.items())}
@@ -429,9 +431,9 @@ def _is_blank(storage: str) -> bool:
 def publish(client, docs: Path, *, root_page_id: str, repo: str, repo_blob_url: str | None,
             dry_run: bool, on_orphan: str = "keep", commit: str = "", log=print,
             mermaid=None, title_prefix: str = "", adopt_root: bool = False,
-            editors_group_id: str = "") -> Plan:
+            editors_group_id: str = "", source_url: str | None = None) -> Plan:
     root = client.get_page(root_page_id)
-    rendered = render_all(docs, repo_blob_url=repo_blob_url, mermaid=mermaid,
+    rendered = render_all(docs, repo_blob_url=repo_blob_url, source_url=source_url, mermaid=mermaid,
                           title_prefix=title_prefix, root_title=root["title"])
     pub = Publisher(client, root_page_id=root_page_id, repo=repo, editors_group_id=editors_group_id,
                     log=log)

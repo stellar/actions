@@ -30,6 +30,10 @@ inputs:
     description: 'ID of the only Confluence group that may edit the pages the publisher creates (default: confluence-docs-publishers). The service account must be in it. Empty leaves pages open to anyone who can edit the space.'
     required: false
     default: 'c48b3bdd-d1ec-404e-85a9-2c5014481a07'
+  source-url:
+    description: 'Link every page''s banner here instead of to its own file. For a folder generated during the run, e.g. from a data file: link the file it came from.'
+    required: false
+    default: ''
   mermaid:
     description: 'Draw ```mermaid blocks as images (true/false).'
     required: false
@@ -91,6 +95,7 @@ runs:
         DRY_RUN: ${{ inputs.dry-run }}
         ADOPT_ROOT: ${{ inputs.adopt-root }}
         CONFLUENCE_EDITORS_GROUP_ID: ${{ inputs.editors-group-id }}
+        CONFLUENCE_SOURCE_URL: ${{ inputs.source-url }}
         MERMAID: ${{ inputs.mermaid }}
         CHECK_ONLY: ${{ inputs.check-only }}
         CONFLUENCE_BASE_URL: ${{ inputs.base-url }}

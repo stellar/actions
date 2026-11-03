@@ -36,6 +36,15 @@ def test_every_body_is_well_formed_xml(docs):
         xml.dom.minidom.parseString(wrapped)  # raises on bad XHTML
 
 
+def test_source_url_links_every_banner_to_one_file(docs):
+    url = "https://github.com/octo/data/blob/main/catalog.tfvars"
+    pages = render_all(docs, repo_blob_url="https://github.com/octo/docs/blob/main/docs",
+                       source_url=url)
+    for r in pages.values():
+        assert r.view_url == url and f'href="{url}"' in r.body
+        assert "github.com/octo/docs/blob/main/docs/" + (r.node.source or "x") not in r.body
+
+
 def test_conversion_details(docs):
     pages = render_all(docs, repo_blob_url="https://github.com/octo/docs/blob/main/docs")
     start = pages["getting-started.md"].body

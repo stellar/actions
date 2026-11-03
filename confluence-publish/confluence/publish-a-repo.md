@@ -95,6 +95,7 @@ AWS role trusts nothing else.
 | `folder` | `confluence` | Folder of Markdown to publish. |
 | `root-page` | | ID of the page to publish under. Required unless `check-only`. |
 | `title-prefix` | `""` | Put in front of every page title. |
+| `source-url` | `""` | Link every page's banner here instead of to its own file, for a folder generated during the run. |
 | `on-orphan` | `delete` | A page whose file is gone: `delete` (move to the trash) or `keep`. |
 | `dry-run` | `false` | Show what would change, change nothing. |
 | `adopt-root` | `true` | Publish `README.md` into a root page that has hand-written content. |
