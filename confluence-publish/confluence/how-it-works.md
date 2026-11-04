@@ -14,8 +14,8 @@ flowchart LR
 The publisher only changes pages it created, plus the root page.
 
 - Each page it creates carries a hidden content property
-  (`confluence-publish`) naming the repo and file. Only pages with this repo's
-  property are ever updated, moved or trashed.
+  (`confluence-publish`) naming the repo, file and root page. Only pages with
+  this repo's property and this root page are ever updated, moved or trashed.
 - Every other page is left alone, whether it's under the root page or not.
 - If a doc's title is already used by a page it didn't create, anywhere in the
   space, the run fails before changing anything. The error names the page and
@@ -23,6 +23,10 @@ The publisher only changes pages it created, plus the root page.
 - The root page takes the docs folder's `README.md`. If the root page has
   hand-written content, `adopt-root` (on by default) replaces it once. A root
   page that another repo publishes into is always refused.
+- Workflows can nest: one can use a page another one publishes as its root.
+  Each treats the other's pages as someone else's, so neither changes or trashes
+  them. The nested one can't have a `README.md`, since that would overwrite the
+  page it publishes under.
 
 ## On each publish
 

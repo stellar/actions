@@ -831,3 +831,65 @@ def test_an_unpublished_markdown_file_inside_the_docs_is_an_error(tmp_path):
     ctx = Context(source="a.md", docs_root=docs.resolve(), titles_by_source={})
     with pytest.raises(ValueError, match="not in the docs"):
         to_storage("[notes](.hidden/notes.md)", ctx, view_url=None, is_folder=False)
+
+
+def _nested_docs(tmp_path):
+    """A second docs folder from the same repo, to publish under a page of the first."""
+    inner = tmp_path / "inner"
+    inner.mkdir()
+    (inner / "access.md").write_text("# Access (nested)\n\nHow to get in.\n")
+    (inner / "devboxes.md").write_text("# Devboxes (nested)\n\nPersonal instances.\n")
+    return inner
+
+
+def test_a_nested_workflow_from_the_same_repo_leaves_the_outer_alone(docs, tmp_path):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    run(fake, docs, root)
+    host = live(fake)["Restart the service (docs-publisher test)"]["id"]
+    inner = _nested_docs(tmp_path)
+    run(fake, inner, host)
+    nested = {t: live(fake)[t]["id"] for t in ("Access (nested)", "Devboxes (nested)")}
+    assert all(fake.pages[i]["parentId"] == host for i in nested.values())
+
+    # The outer run sees the nested pages as someone else's: nothing changes, nothing trashed.
+    plan = run(fake, docs, root, on_orphan="delete")
+    assert {s.action for s in plan.steps} == {"unchanged"}
+    assert all(not fake.pages[i]["trashed"] for i in nested.values())
+    # And the nested run leaves the outer pages alone.
+    plan = run(fake, inner, host, on_orphan="delete")
+    assert {s.key for s in plan.steps} == {"access.md", "devboxes.md"}
+
+    # The outer doc goes away: its page stays, because the nested pages are under it.
+    (docs / "runbooks/restart.md").unlink()
+    run(fake, docs, root, on_orphan="delete")
+    assert not fake.pages[host]["trashed"]
+    assert all(not fake.pages[i]["trashed"] for i in nested.values())
+
+
+def test_a_readme_is_never_published_into_a_page_another_run_publishes(docs, tmp_path):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    run(fake, docs, root)
+    host = live(fake)["Restart the service (docs-publisher test)"]["id"]
+    body = fake.pages[host]["body"]
+    inner = _nested_docs(tmp_path)
+    (inner / "README.md").write_text("# Overview\n\nWould overwrite the host page.\n")
+    with pytest.raises(TitleError, match="itself published by octo/docs from runbooks/restart.md"):
+        run(fake, inner, host, adopt_root=True)
+    assert fake.pages[host]["body"] == body
+
+
+def test_markers_from_before_root_was_recorded_are_still_ours(docs):
+    fake = FakeConfluence()
+    root = fake.add("Parent page")
+    (docs / "README.md").write_text("# Docs\n\nThe root page.\n")
+    run(fake, docs, root)
+    assert (root, PROPERTY_KEY) in fake.props
+    for (pid, key), prop in fake.props.items():
+        if key == PROPERTY_KEY:
+            prop["value"].pop("root", None)
+    plan = run(fake, docs, root, on_orphan="delete")
+    assert {s.action for s in plan.steps} == {"unchanged"}
+    assert all(p["value"]["root"] == root for (pid, key), p in fake.props.items()
+               if key == PROPERTY_KEY)

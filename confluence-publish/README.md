@@ -85,6 +85,9 @@ pages it created are restricted, whether or not they changed.
 - The folder's own `README.md` becomes the root page's content. The root page
   keeps its title unless `README.md` sets `title:`, and is never moved or
   trashed.
+- Workflows can nest: a page one publishes can be another's `root-page`, even
+  from the same repo. Neither changes or trashes the other's pages. The nested
+  one can't have a top-level `README.md`, since it would overwrite that page.
 - Relative links between docs become page links; links to a heading land on
   it. Relative images are uploaded as attachments. Mermaid diagrams are drawn
   as images. Each page starts with a note linking to its source file.
