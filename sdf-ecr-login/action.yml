@@ -158,9 +158,15 @@ runs:
             --output-format CYCLONE_DX_1_5 --query sbom >"$work/scan-$start.json" 2>"$work/scan.err"; then
             return 0
           fi
-          if ! grep -q 'Response too large' "$work/scan.err" || [ "$count" -le 1 ]; then
+          if ! grep -q 'Response too large' "$work/scan.err"; then
             cat "$work/scan.err" >&2
             return 1
+          fi
+          if [ "$count" -le 1 ]; then
+            # One package with too many CVEs to return, such as Ubuntu's linux kernel package.
+            rm -f "$work/scan-$start.json"
+            jq -r '.components[] | select(.type != "operating-system") | "\(.name) \(.version)"' "$work/part.json" >>"$work/unscanned.txt"
+            return 0
           fi
           half=$((count / 2))
           scan_batch "$work" "$start" "$half" && scan_batch "$work" $((start + half)) $((count - half))
@@ -177,9 +183,21 @@ runs:
             echo "Already scanned ${id}"
             return 0
           fi
-          docker save "$IMAGE" -o "$work/image.tar" || return 1
-          "$ECR_PUSH_SBOMGEN" container --image "$work/image.tar" -o "$work/sbom.json" >"$work/sbomgen.log" 2>&1 \
-            || { tail -5 "$work/sbomgen.log" >&2; return 1; }
+          if ! { docker save "$IMAGE" -o "$work/image.tar" \
+            && "$ECR_PUSH_SBOMGEN" container --image "$work/image.tar" -o "$work/sbom.json" >"$work/sbomgen.log" 2>&1; }; then
+            # docker save can't export some pulled multi-platform images, so scan the image's files instead.
+            tail -3 "$work/sbomgen.log" 2>/dev/null
+            echo "Scanning the files of ${IMAGE} instead of the saved image"
+            rm -f "$work/image.tar"
+            local container
+            container=$(docker create "$IMAGE") || return 1
+            mkdir "$work/rootfs"
+            docker export "$container" | tar -x -C "$work/rootfs" 2>/dev/null
+            docker rm "$container" >/dev/null
+            "$ECR_PUSH_SBOMGEN" directory --path "$work/rootfs" -o "$work/sbom.json" >"$work/sbomgen.log" 2>&1 \
+              || { tail -5 "$work/sbomgen.log" >&2; return 1; }
+            rm -rf "$work/rootfs"
+          fi
           rm -f "$work/image.tar"
           scan_batch "$work" 0 "$(jq '[.components[]? | select(.type != "operating-system")] | length' "$work/sbom.json")" \
             || return 1
@@ -200,6 +218,9 @@ runs:
             | unique[]
           ' "$work/scan.json" >"$work/critical.txt" || return 1
           mkdir -p "$ECR_PUSH_SCANNED" && touch "${ECR_PUSH_SCANNED}/${id#sha256:}"
+          if [ -s "$work/unscanned.txt" ]; then
+            echo "::warning title=Unscanned packages in ${REPO_NAME}::Amazon Inspector has too many CVEs to report for these packages in ${IMAGE}, so they weren't checked: $(paste -sd ';' "$work/unscanned.txt" | sed 's/;/; /g')"
+          fi
           count=$(wc -l <"$work/critical.txt" | tr -d ' ')
           if [ "$count" -eq 0 ]; then
             echo "Amazon Inspector: no critical findings in ${IMAGE}"
