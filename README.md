@@ -51,6 +51,7 @@ jobs:
 | [rust-set-rust-version] | Workflow | Updates the rust-version in Rust crates to the latest stable version. |
 | [rust-check-git-rev-deps] | Workflow | Check that git rev dependencies do not reference revisions likely to be orphaned. |
 | [sdf-ecr-login] | Action | Abstraction for SDF's AWS ECR login steps. |
+| [ecr-scan] | Action | Scans container images with Amazon Inspector for the critical CVEs ECR enhanced scanning would report, without push access. |
 | [sdf-pr-preview] | Action | Builds and publishes an ArgoCD-deployed preview environment for org-member PRs. |
 | [confluence-publish] | Action | Publishes a folder of Markdown to Confluence, one way, with the token read from AWS through OIDC. |
 
@@ -90,6 +91,7 @@ workflows.
 [update-completed-sprint-on-issue-closed]: ./.github/workflows/update-completed-sprint-on-issue-closed.yml
 [disk-cleanup]: ./disk-cleanup
 [sdf-ecr-login]: ./sdf-ecr-login/action.yml
+[ecr-scan]: ./ecr-scan
 [sdf-pr-preview]: ./sdf-pr-preview
 [confluence-publish]: ./confluence-publish
 [README-rust-release.md]: README-rust-release.md

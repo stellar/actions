@@ -19,13 +19,6 @@ inputs:
       critical CVEs ECR enhanced scanning would report (true/false). The scan never fails the push.
     required: false
     default: 'true'
-  scan-only:
-    description: >-
-      For Copilot coding agent setup steps (true/false). Logs in to a role that can only scan images,
-      not push them, installs ecr-scan instead of ecr-push, and saves the credentials to ~/.aws so the
-      agent can run ecr-scan in its session. Skips ECR login.
-    required: false
-    default: 'false'
 
 outputs:
   ecr-registry:
@@ -53,26 +46,25 @@ runs:
     - name: Configure AWS credentials via OIDC (sub-scoped role)
       uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
       with:
-        role-to-assume: ${{ inputs.scan-only == 'true' && 'arn:aws:iam::746476062914:role/github-actions-inspector-scan' || 'arn:aws:iam::746476062914:role/github-actions-ecr' }}
+        role-to-assume: "arn:aws:iam::746476062914:role/github-actions-ecr"
         aws-region: "us-east-1"
         role-session-name: gha-ecr-${{ github.run_id }}-${{ github.run_attempt }}
 
     # Step 3: Login to private ECR
     - name: Login to Amazon ECR
       id: login-ecr
-      if: inputs.scan-only != 'true'
       uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
 
     # Step 4: Conditionally login to public ECR
     - name: Login to Amazon ECR Public
-      if: inputs.login-public-ecr == 'true' && inputs.scan-only != 'true'
+      if: inputs.login-public-ecr == 'true'
       id: login-ecr-public
       uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
       with:
         registry-type: public
 
     - name: Install inspector-sbomgen
-      if: inputs.scan-images == 'true' || inputs.scan-only == 'true'
+      if: inputs.scan-images == 'true'
       shell: bash
       env:
         RUNNER_TEMP: ${{ runner.temp }}
@@ -91,7 +83,6 @@ runs:
 
     # Install ecr-push wrapper script onto PATH
     - name: Install ecr-push helper
-      if: inputs.scan-only != 'true'
       shell: bash
       env:
         RUNNER_TEMP: ${{ runner.temp }}
@@ -201,33 +192,10 @@ runs:
         docker push "$IMAGE"
         SCRIPT
         chmod +x "$SCRIPT_DIR/ecr-push"
-        cp "${ACTION_PATH}/ecr-scan" "$SCRIPT_DIR/ecr-scan"
+        # The scan lives in the ecr-scan action; the whole repository is checked out alongside this one.
+        cp "${ACTION_PATH}/../ecr-scan/ecr-scan" "$SCRIPT_DIR/ecr-scan"
         echo "$SCRIPT_DIR" >> "$GITHUB_PATH"
         echo "ECR_PUSH_REGION=${AWS_REGION_INPUT}" >> "$GITHUB_ENV"
         echo "ECR_PUSH_REPO_TAG=${REPO_TAG:-$GITHUB_REPO}" >> "$GITHUB_ENV"
         echo "ECR_PUSH_SCANNED=${RUNNER_TEMP}/ecr-push-scanned" >> "$GITHUB_ENV"
 
-    # Copilot's session doesn't inherit this job's environment, so put the tools on the system PATH
-    # and the credentials in the default AWS config files.
-    - name: Install ecr-scan for Copilot
-      if: inputs.scan-only == 'true'
-      shell: bash
-      env:
-        ACTION_PATH: ${{ github.action_path }}
-      run: |
-        if [ -z "${ECR_SCAN_SBOMGEN:-}" ]; then
-          echo "::error::inspector-sbomgen didn't install, so ecr-scan can't run."
-          exit 1
-        fi
-        sudo install -m 755 "$ECR_SCAN_SBOMGEN" /usr/local/bin/inspector-sbomgen
-        sudo install -m 755 "${ACTION_PATH}/ecr-scan" /usr/local/bin/ecr-scan
-        mkdir -p ~/.aws
-        umask 077
-        cat >~/.aws/credentials <<CREDS
-        [default]
-        aws_access_key_id = ${AWS_ACCESS_KEY_ID}
-        aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
-        aws_session_token = ${AWS_SESSION_TOKEN}
-        CREDS
-        printf '[default]\nregion = us-east-1\n' >~/.aws/config
-        echo "ecr-scan is installed; credentials for github-actions-inspector-scan are in ~/.aws."
