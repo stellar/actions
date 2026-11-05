@@ -13,6 +13,12 @@ inputs:
       'chain' is no longer supported and is treated as 'oidc' with a warning.
     required: false
     default: 'oidc'
+  scan-images:
+    description: >-
+      Whether ecr-push scans each image with Amazon Inspector before pushing it and warns about the
+      critical CVEs ECR enhanced scanning would report (true/false). The scan never fails the push.
+    required: false
+    default: 'true'
 
 outputs:
   ecr-registry:
@@ -56,6 +62,24 @@ runs:
       uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
       with:
         registry-type: public
+
+    - name: Install inspector-sbomgen
+      if: inputs.scan-images == 'true'
+      shell: bash
+      env:
+        RUNNER_TEMP: ${{ runner.temp }}
+      run: |
+        case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64 | arm64) arch=arm64 ;; *) arch= ;; esac
+        dir="${RUNNER_TEMP}/inspector-sbomgen"
+        mkdir -p "$dir"
+        if [ -n "$arch" ] \
+          && curl -fsSL --retry 3 "https://amazon-inspector-sbomgen.s3.amazonaws.com/latest/linux/${arch}/inspector-sbomgen.zip" -o "$dir/sbomgen.zip" \
+          && unzip -q -o -j "$dir/sbomgen.zip" '*/inspector-sbomgen' -d "$dir"; then
+          chmod +x "$dir/inspector-sbomgen"
+          echo "ECR_PUSH_SBOMGEN=$dir/inspector-sbomgen" >> "$GITHUB_ENV"
+        else
+          echo "::warning::Could not install inspector-sbomgen; ecr-push will push without scanning."
+        fi
 
     # Install ecr-push wrapper script onto PATH
     - name: Install ecr-push helper
@@ -122,6 +146,56 @@ runs:
           echo "::warning::Repository '${REPO_NAME}' does not exist and is not under dev/, stg/, or prd/. Skipping creation — these repositories must be managed via Terraform."
         fi
 
+        # Warn about the critical CVEs ECR enhanced scanning would report for this image. Uses
+        # Amazon Inspector's own rating and skips lockfile dev dependencies, as ECR does.
+        # Runs as `scan "$work" || ...`, where set -e doesn't apply, so each step checks its own exit.
+        scan() {
+          local work="$1" id count
+          id=$(docker image inspect -f '{{.Id}}' "$IMAGE") || return 1
+          # Each image is scanned once per job, even when it's pushed to several repositories.
+          if [ -e "${ECR_PUSH_SCANNED}/${id#sha256:}" ]; then
+            echo "Already scanned ${id}"
+            return 0
+          fi
+          docker save "$IMAGE" -o "$work/image.tar" || return 1
+          "$ECR_PUSH_SBOMGEN" container --image "$work/image.tar" -o "$work/sbom.json" >/dev/null 2>&1 || return 1
+          rm -f "$work/image.tar"
+          aws inspector-scan scan-sbom --region "$REGION" --sbom "file://$work/sbom.json" \
+            --output-format CYCLONE_DX_1_5 --query sbom >"$work/scan.json" || return 1
+          jq -r '
+            (.components // []) as $components
+            | .vulnerabilities // []
+            | map(select(any(.ratings[]?; .source.name == "AMAZON_INSPECTOR" and .severity == "critical")))
+            | map(
+                . as $v
+                | [$v.affects[]?.ref as $ref | $components[]
+                   | select(."bom-ref" == $ref and ((.purl // "") | test("dev_dependency=true") | not))
+                   | "\(.name) \(.version)"]
+                | select(length > 0)
+                | "\($v.id): \(unique | join(", "))"
+              )
+            | unique[]
+          ' "$work/scan.json" >"$work/critical.txt" || return 1
+          mkdir -p "$ECR_PUSH_SCANNED" && touch "${ECR_PUSH_SCANNED}/${id#sha256:}"
+          count=$(wc -l <"$work/critical.txt" | tr -d ' ')
+          if [ "$count" -eq 0 ]; then
+            echo "Amazon Inspector: no critical findings in ${IMAGE}"
+            return 0
+          fi
+          echo "::warning title=Critical CVEs in ${REPO_NAME}::${count} critical CVE(s) in ${IMAGE}: $(paste -sd ';' "$work/critical.txt" | sed 's/;/; /g')"
+          {
+            echo "### ${count} critical CVE(s) in \`${IMAGE}\`"
+            echo
+            sed 's/^/- /' "$work/critical.txt"
+            echo
+          } >>"$GITHUB_STEP_SUMMARY"
+        }
+        if [ -n "${ECR_PUSH_SBOMGEN:-}" ]; then
+          SCAN_DIR=$(mktemp -d)
+          scan "$SCAN_DIR" || echo "::warning::Amazon Inspector scan of ${IMAGE} failed; pushing without it."
+          rm -rf "$SCAN_DIR"
+        fi
+
         echo "Attempting to push image to repository '${REPO_NAME}'"
         docker push "$IMAGE"
         SCRIPT
@@ -129,3 +203,4 @@ runs:
         echo "$SCRIPT_DIR" >> "$GITHUB_PATH"
         echo "ECR_PUSH_REGION=${AWS_REGION_INPUT}" >> "$GITHUB_ENV"
         echo "ECR_PUSH_REPO_TAG=${REPO_TAG:-$GITHUB_REPO}" >> "$GITHUB_ENV"
+        echo "ECR_PUSH_SCANNED=${RUNNER_TEMP}/ecr-push-scanned" >> "$GITHUB_ENV"
