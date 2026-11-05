@@ -7,20 +7,29 @@
 # dependencies. Prints one "<id>: <packages>" line per CVE, then "critical findings: <n>".
 # Exits 0 with no critical findings, 1 with some, and 2 if the scan couldn't run.
 #
-# Uses inspector-sbomgen from PATH, or downloads it for this run. --install <dir> only downloads it
-# into <dir>, for when the network will be restricted later (Copilot's firewall blocks it).
+# Uses inspector-sbomgen from PATH, or downloads a pinned, checksum-verified release for this run.
+# --install <dir> only downloads it into <dir>, for when the network will be restricted later
+# (Copilot's firewall blocks it).
 set -uo pipefail
+
+SBOMGEN_VERSION=1.17.5
 
 # Downloads inspector-sbomgen into the given directory.
 download_sbomgen() {
-  local dir="$1" arch
+  local dir="$1" arch sha256 actual
   case "$(uname -m)" in
-    x86_64) arch=amd64 ;;
-    aarch64 | arm64) arch=arm64 ;;
+    x86_64) arch=amd64 sha256=28bc3e374541469662988f3c7c1a37399716d3061204e127763dff4f9af99e47 ;;
+    aarch64 | arm64) arch=arm64 sha256=90229e9a8d35c24b3e4640347f2d0efd8af28d723abc2cc01d1226430190aa0f ;;
     *) echo "Unsupported architecture $(uname -m)" >&2; return 1 ;;
   esac
-  curl -fsSL --retry 3 "https://amazon-inspector-sbomgen.s3.amazonaws.com/latest/linux/${arch}/inspector-sbomgen.zip" -o "$dir/sbomgen.zip" \
-    && unzip -q -o -j "$dir/sbomgen.zip" '*/inspector-sbomgen' -d "$dir" \
+  curl -fsSL --retry 3 "https://amazon-inspector-sbomgen.s3.amazonaws.com/${SBOMGEN_VERSION}/linux/${arch}/inspector-sbomgen.zip" -o "$dir/sbomgen.zip" \
+    || { echo "Couldn't download inspector-sbomgen" >&2; return 1; }
+  actual=$( (sha256sum "$dir/sbomgen.zip" 2>/dev/null || shasum -a 256 "$dir/sbomgen.zip") | cut -d' ' -f1)
+  if [ "$actual" != "$sha256" ]; then
+    echo "inspector-sbomgen ${SBOMGEN_VERSION} checksum mismatch: got ${actual}" >&2
+    return 1
+  fi
+  unzip -q -o -j "$dir/sbomgen.zip" '*/inspector-sbomgen' -d "$dir" \
     && chmod +x "$dir/inspector-sbomgen" \
     && rm -f "$dir/sbomgen.zip" \
     || { echo "Couldn't download inspector-sbomgen" >&2; return 1; }
@@ -81,7 +90,14 @@ if ! { docker save "$IMAGE" -o "$work/image.tar" \
   container=$(docker create "$IMAGE") || exit 2
   mkdir "$work/rootfs"
   docker export "$container" | tar -x -C "$work/rootfs" 2>/dev/null
+  export_status=${PIPESTATUS[0]}
   docker rm "$container" >/dev/null
+  # tar can't create device files without root and exits non-zero for them, so judge the export
+  # itself and whether anything was extracted.
+  if [ "$export_status" -ne 0 ] || [ -z "$(ls -A "$work/rootfs")" ]; then
+    echo "Couldn't export the files of ${IMAGE}" >&2
+    exit 2
+  fi
   "$SBOMGEN" directory --path "$work/rootfs" -o "$work/sbom.json" >"$work/sbomgen.log" 2>&1 \
     || { tail -5 "$work/sbomgen.log" >&2; exit 2; }
   rm -rf "$work/rootfs"

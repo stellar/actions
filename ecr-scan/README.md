@@ -22,7 +22,7 @@ steps:
 ecr-scan <image>
 ```
 
-The action installs `inspector-sbomgen` next to it; elsewhere, `ecr-scan` downloads it for each run. It prints one `<CVE>: <packages>` line per critical CVE, then `critical findings: <n>`, and exits 0 with no critical findings, 1 with some, and 2 if the scan couldn't run.
+The action installs `inspector-sbomgen` next to it; elsewhere, `ecr-scan` downloads it for each run. Either way it's a pinned release whose SHA-256 is checked before it runs. It prints one `<CVE>: <packages>` line per critical CVE, then `critical findings: <n>`, and exits 0 with no critical findings, 1 with some, and 2 if the scan couldn't run.
 
 ## Inputs
 
