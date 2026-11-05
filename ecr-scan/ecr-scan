@@ -82,8 +82,14 @@ scan_batch() {
 }
 
 if ! { docker save "$IMAGE" -o "$work/image.tar" \
-  && "$SBOMGEN" container --image "$work/image.tar" -o "$work/sbom.json" >"$work/sbomgen.log" 2>&1; }; then
-  # docker save can't export some pulled multi-platform images, so scan the image's files instead.
+  && "$SBOMGEN" container --image "$work/image.tar" -o "$work/sbom.json" >"$work/sbomgen.log" 2>&1; } \
+  && ! {
+    # sbomgen can't parse what docker save writes for some pulled images, but can read them from the
+    # Docker daemon directly.
+    echo "Reading ${IMAGE} from the Docker daemon instead of a saved image" >&2
+    "$SBOMGEN" container --image "$IMAGE" -o "$work/sbom.json" >"$work/sbomgen.log" 2>&1
+  }; then
+  # Neither worked, so scan the image's files instead. This finds fewer packages than the image scans.
   tail -3 "$work/sbomgen.log" >&2 2>/dev/null
   echo "Scanning the files of ${IMAGE} instead of the saved image" >&2
   rm -f "$work/image.tar"
