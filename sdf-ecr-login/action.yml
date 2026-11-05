@@ -13,6 +13,12 @@ inputs:
       'chain' is no longer supported and is treated as 'oidc' with a warning.
     required: false
     default: 'oidc'
+  scan-images:
+    description: >-
+      Whether ecr-push scans each image with Amazon Inspector before pushing it and warns about the
+      critical CVEs ECR enhanced scanning would report (true/false). The scan never fails the push.
+    required: false
+    default: 'true'
 
 outputs:
   ecr-registry:
@@ -64,6 +70,8 @@ runs:
         RUNNER_TEMP: ${{ runner.temp }}
         AWS_REGION_INPUT: "us-east-1"
         GITHUB_REPO: ${{ github.repository }}
+        ACTION_PATH: ${{ github.action_path }}
+        SCAN_IMAGES: ${{ inputs.scan-images }}
       run: |
         # Repos with immutable OIDC subjects send "owner@id/repo@id" instead of "owner/repo", so tag with what the token carries.
         oidc_sub() {
@@ -122,10 +130,56 @@ runs:
           echo "::warning::Repository '${REPO_NAME}' does not exist and is not under dev/, stg/, or prd/. Skipping creation — these repositories must be managed via Terraform."
         fi
 
+        # Warn about the critical CVEs ECR enhanced scanning would report. The scan never fails the push.
+        if [ "${ECR_PUSH_SCAN}" = true ]; then
+          ID=$(docker image inspect -f '{{.Id}}' "$IMAGE" 2>/dev/null || true)
+          # Each image is scanned once per job, even when it's pushed to several repositories.
+          if [ -n "$ID" ] && [ -e "${ECR_PUSH_SCANNED}/${ID#sha256:}" ]; then
+            echo "Already scanned ${ID}"
+          else
+            SCAN_OUT=$(mktemp)
+            SCAN_ERR=$(mktemp)
+            STATUS=0
+            "$(dirname "$0")/ecr-scan" "$IMAGE" >"$SCAN_OUT" 2>"$SCAN_ERR" || STATUS=$?
+            if [ -s "$SCAN_ERR" ] && grep -q '^Not scanned' "$SCAN_ERR"; then
+              echo "::warning title=Unscanned packages in ${REPO_NAME}::$(grep '^Not scanned' "$SCAN_ERR") (${IMAGE})"
+            fi
+            case "$STATUS" in
+              0)
+                echo "Amazon Inspector: no critical findings in ${IMAGE}"
+                ;;
+              1)
+                sed '$d' "$SCAN_OUT" >"${SCAN_OUT}.cves"
+                COUNT=$(wc -l <"${SCAN_OUT}.cves" | tr -d ' ')
+                echo "::warning title=Critical CVEs in ${REPO_NAME}::${COUNT} critical CVE(s) in ${IMAGE}: $(paste -sd ';' "${SCAN_OUT}.cves" | sed 's/;/; /g')"
+                {
+                  echo "### ${COUNT} critical CVE(s) in \`${IMAGE}\`"
+                  echo
+                  sed 's/^/- /' "${SCAN_OUT}.cves"
+                  echo
+                } >>"$GITHUB_STEP_SUMMARY"
+                ;;
+              *)
+                tail -5 "$SCAN_ERR" >&2
+                echo "::warning::Amazon Inspector scan of ${IMAGE} failed; pushing without it."
+                ;;
+            esac
+            if [ "$STATUS" -le 1 ] && [ -n "$ID" ]; then
+              mkdir -p "$ECR_PUSH_SCANNED" && touch "${ECR_PUSH_SCANNED}/${ID#sha256:}"
+            fi
+            rm -f "$SCAN_OUT" "${SCAN_OUT}.cves" "$SCAN_ERR"
+          fi
+        fi
+
         echo "Attempting to push image to repository '${REPO_NAME}'"
         docker push "$IMAGE"
         SCRIPT
         chmod +x "$SCRIPT_DIR/ecr-push"
+        # The scan lives in the ecr-scan action; the whole repository is checked out alongside this one.
+        cp "${ACTION_PATH}/../ecr-scan/ecr-scan" "$SCRIPT_DIR/ecr-scan"
         echo "$SCRIPT_DIR" >> "$GITHUB_PATH"
         echo "ECR_PUSH_REGION=${AWS_REGION_INPUT}" >> "$GITHUB_ENV"
         echo "ECR_PUSH_REPO_TAG=${REPO_TAG:-$GITHUB_REPO}" >> "$GITHUB_ENV"
+        echo "ECR_PUSH_SCANNED=${RUNNER_TEMP}/ecr-push-scanned" >> "$GITHUB_ENV"
+        echo "ECR_PUSH_SCAN=${SCAN_IMAGES}" >> "$GITHUB_ENV"
+

@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+# Usage: ecr-scan <image>
+#        ecr-scan --install <dir>
+#
+# Scans a local image with Amazon Inspector, the scanner behind ECR enhanced scanning, and prints
+# the critical CVEs ECR would report for it: Inspector's own severity, without lockfile dev
+# dependencies. Prints one "<id>: <packages>" line per CVE, then "critical findings: <n>".
+# Exits 0 with no critical findings, 1 with some, and 2 if the scan couldn't run.
+#
+# Uses inspector-sbomgen from PATH, or downloads a pinned, checksum-verified release for this run.
+# --install <dir> only downloads it into <dir>, for when the network will be restricted later
+# (Copilot's firewall blocks it).
+set -uo pipefail
+
+SBOMGEN_VERSION=1.17.5
+
+# Downloads inspector-sbomgen into the given directory.
+download_sbomgen() {
+  local dir="$1" arch sha256 actual
+  case "$(uname -m)" in
+    x86_64) arch=amd64 sha256=28bc3e374541469662988f3c7c1a37399716d3061204e127763dff4f9af99e47 ;;
+    aarch64 | arm64) arch=arm64 sha256=90229e9a8d35c24b3e4640347f2d0efd8af28d723abc2cc01d1226430190aa0f ;;
+    *) echo "Unsupported architecture $(uname -m)" >&2; return 1 ;;
+  esac
+  curl -fsSL --retry 3 "https://amazon-inspector-sbomgen.s3.amazonaws.com/${SBOMGEN_VERSION}/linux/${arch}/inspector-sbomgen.zip" -o "$dir/sbomgen.zip" \
+    || { echo "Couldn't download inspector-sbomgen" >&2; return 1; }
+  actual=$( (sha256sum "$dir/sbomgen.zip" 2>/dev/null || shasum -a 256 "$dir/sbomgen.zip") | cut -d' ' -f1)
+  if [ "$actual" != "$sha256" ]; then
+    echo "inspector-sbomgen ${SBOMGEN_VERSION} checksum mismatch: got ${actual}" >&2
+    return 1
+  fi
+  unzip -q -o -j "$dir/sbomgen.zip" '*/inspector-sbomgen' -d "$dir" \
+    && chmod +x "$dir/inspector-sbomgen" \
+    && rm -f "$dir/sbomgen.zip" \
+    || { echo "Couldn't download inspector-sbomgen" >&2; return 1; }
+}
+
+if [ "${1:-}" = --install ] && [ $# -eq 2 ]; then
+  download_sbomgen "$2" || exit 2
+  exit 0
+fi
+if [ $# -ne 1 ]; then
+  echo "Usage: ecr-scan <image> | ecr-scan --install <dir>" >&2
+  exit 2
+fi
+IMAGE="$1"
+REGION="${ECR_SCAN_REGION:-us-east-1}"
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+SBOMGEN="$(command -v inspector-sbomgen || true)"
+if [ -z "$SBOMGEN" ]; then
+  download_sbomgen "$work" || exit 2
+  SBOMGEN="$work/inspector-sbomgen"
+fi
+
+# Scans the SBOM's components [start, start + count) with its OS components, halving the batch
+# when Inspector rejects the response for having too many findings.
+scan_batch() {
+  local start="$1" count="$2" half
+  jq --argjson start "$start" --argjson count "$count" '.components |= (
+      [.[] | select(.type == "operating-system")]
+      + ([.[] | select(.type != "operating-system")] | .[$start:$start + $count]))' \
+    "$work/sbom.json" >"$work/part.json" || return 1
+  if aws inspector-scan scan-sbom --region "$REGION" --sbom "file://$work/part.json" \
+    --output-format CYCLONE_DX_1_5 --query sbom >"$work/scan-$start.json" 2>"$work/scan.err"; then
+    return 0
+  fi
+  if ! grep -q 'Response too large' "$work/scan.err"; then
+    cat "$work/scan.err" >&2
+    return 1
+  fi
+  if [ "$count" -le 1 ]; then
+    # One package with too many CVEs to return, such as Ubuntu's linux kernel package.
+    rm -f "$work/scan-$start.json"
+    jq -r '.components[] | select(.type != "operating-system") | "\(.name) \(.version)"' "$work/part.json" >>"$work/unscanned.txt"
+    return 0
+  fi
+  half=$((count / 2))
+  scan_batch "$start" "$half" && scan_batch $((start + half)) $((count - half))
+}
+
+if ! { docker save "$IMAGE" -o "$work/image.tar" \
+  && "$SBOMGEN" container --image "$work/image.tar" -o "$work/sbom.json" >"$work/sbomgen.log" 2>&1; }; then
+  # docker save can't export some pulled multi-platform images, so scan the image's files instead.
+  tail -3 "$work/sbomgen.log" >&2 2>/dev/null
+  echo "Scanning the files of ${IMAGE} instead of the saved image" >&2
+  rm -f "$work/image.tar"
+  container=$(docker create "$IMAGE") || exit 2
+  mkdir "$work/rootfs"
+  docker export "$container" | tar -x -C "$work/rootfs" 2>/dev/null
+  export_status=${PIPESTATUS[0]}
+  docker rm "$container" >/dev/null
+  # tar can't create device files without root and exits non-zero for them, so judge the export
+  # itself and whether anything was extracted.
+  if [ "$export_status" -ne 0 ] || [ -z "$(ls -A "$work/rootfs")" ]; then
+    echo "Couldn't export the files of ${IMAGE}" >&2
+    exit 2
+  fi
+  "$SBOMGEN" directory --path "$work/rootfs" -o "$work/sbom.json" >"$work/sbomgen.log" 2>&1 \
+    || { tail -5 "$work/sbomgen.log" >&2; exit 2; }
+  rm -rf "$work/rootfs"
+fi
+rm -f "$work/image.tar"
+
+scan_batch 0 "$(jq '[.components[]? | select(.type != "operating-system")] | length' "$work/sbom.json")" || exit 2
+
+# Each response numbers its own bom-refs, so match CVEs to packages per batch, then combine.
+for part in "$work"/scan-*.json; do
+  [ -e "$part" ] || continue
+  jq -c '
+    (.components // []) as $components
+    | .vulnerabilities // []
+    | .[]
+    | select(any(.ratings[]?; .source.name == "AMAZON_INSPECTOR" and .severity == "critical"))
+    | . as $v
+    | {id: $v.id, packages: [$v.affects[]?.ref as $ref | $components[]
+        | select(."bom-ref" == $ref and ((.purl // "") | test("dev_dependency=true") | not))
+        | "\(.name) \(.version // "")" | rtrimstr(" ")]}
+    | select(.packages | length > 0)
+  ' "$part" || exit 2
+done >"$work/critical.jsonl"
+jq -rs 'group_by(.id) | map("\(.[0].id): \(map(.packages[]) | unique | join(", "))")[]' \
+  "$work/critical.jsonl" >"$work/critical.txt" || exit 2
+
+if [ -s "$work/unscanned.txt" ]; then
+  echo "Not scanned, too many CVEs for Inspector to return: $(paste -sd ';' "$work/unscanned.txt" | sed 's/;/; /g')" >&2
+fi
+cat "$work/critical.txt"
+count=$(wc -l <"$work/critical.txt" | tr -d ' ')
+echo "critical findings: $count"
+[ "$count" -eq 0 ]
