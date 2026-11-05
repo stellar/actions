@@ -53,7 +53,8 @@ ecr-push <image:tag>
 It will:
 1. Extract the repository name from the image URI
 2. Create the ECR repository if it doesn't exist, tagging it with `Repository: <owner/repo>`, taken from the OIDC token's `sub` claim (`<owner@id/repo@id>` for repos that use immutable subjects)
-3. Push the image via `docker push`
+3. Scan the image with Amazon Inspector and warn about its critical CVEs (see [Image scanning](#image-scanning))
+4. Push the image via `docker push`
 
 **Note:** `ecr-push` only supports private ECR repositories. Public ECR repositories are managed via Terraform and must be created separately.
 
@@ -63,6 +64,17 @@ It will:
 |------|----------|---------|-------------|
 | `login-public-ecr` | no | `false` | Set to `true` to also log into ECR Public |
 | `auth-mode` | no | `oidc` | Deprecated; `oidc` is the only mode. `chain` is ignored with a warning. See [How access is scoped](#how-access-is-scoped) |
+| `scan-images` | no | `true` | Set to `false` to push without scanning. See [Image scanning](#image-scanning) |
+
+## Image scanning
+
+Before each push, `ecr-push` scans the image with Amazon Inspector, the scanner behind ECR enhanced scanning, and reports the critical CVEs ECR would report for it: it uses Inspector's own severity and skips lockfile dev dependencies, as ECR does. Findings show up as a warning annotation on the run and in the job summary.
+
+- The scan never fails the push. If it can't run, `ecr-push` warns and pushes anyway.
+- Each image is scanned once per job, so pushing one image to several repositories (e.g. `dev/` and `prd/`) scans it once.
+- Scanning adds about 5 seconds for a small alpine image and 25 to 55 seconds for a 500 to 600 MB image.
+- A package with too many CVEs for Inspector to return in one response, such as Ubuntu's `linux` kernel package, is skipped and named in a warning.
+- Images pushed with `docker buildx build --push` don't go through `ecr-push`, so they aren't scanned.
 
 ## How access is scoped
 
