@@ -201,22 +201,23 @@ runs:
           rm -f "$work/image.tar"
           scan_batch "$work" 0 "$(jq '[.components[]? | select(.type != "operating-system")] | length' "$work/sbom.json")" \
             || return 1
-          jq -s '{components: (map(.components // []) | add), vulnerabilities: (map(.vulnerabilities // []) | add)}' \
-            "$work"/scan-*.json >"$work/scan.json" || return 1
-          jq -r '
-            (.components // []) as $components
-            | .vulnerabilities // []
-            | map(select(any(.ratings[]?; .source.name == "AMAZON_INSPECTOR" and .severity == "critical")))
-            | map(
-                . as $v
-                | [$v.affects[]?.ref as $ref | $components[]
-                   | select(."bom-ref" == $ref and ((.purl // "") | test("dev_dependency=true") | not))
-                   | "\(.name) \(.version)"]
-                | select(length > 0)
-                | "\($v.id): \(unique | join(", "))"
-              )
-            | unique[]
-          ' "$work/scan.json" >"$work/critical.txt" || return 1
+          # Each response numbers its own bom-refs, so match CVEs to packages per batch, then combine.
+          for part in "$work"/scan-*.json; do
+            [ -e "$part" ] || continue
+            jq -c '
+              (.components // []) as $components
+              | .vulnerabilities // []
+              | .[]
+              | select(any(.ratings[]?; .source.name == "AMAZON_INSPECTOR" and .severity == "critical"))
+              | . as $v
+              | {id: $v.id, packages: [$v.affects[]?.ref as $ref | $components[]
+                  | select(."bom-ref" == $ref and ((.purl // "") | test("dev_dependency=true") | not))
+                  | "\(.name) \(.version // "")" | rtrimstr(" ")]}
+              | select(.packages | length > 0)
+            ' "$part" || return 1
+          done >"$work/critical.jsonl"
+          jq -rs 'group_by(.id) | map("\(.[0].id): \(map(.packages[]) | unique | join(", "))")[]' \
+            "$work/critical.jsonl" >"$work/critical.txt" || return 1
           mkdir -p "$ECR_PUSH_SCANNED" && touch "${ECR_PUSH_SCANNED}/${id#sha256:}"
           if [ -s "$work/unscanned.txt" ]; then
             echo "::warning title=Unscanned packages in ${REPO_NAME}::Amazon Inspector has too many CVEs to report for these packages in ${IMAGE}, so they weren't checked: $(paste -sd ';' "$work/unscanned.txt" | sed 's/;/; /g')"
