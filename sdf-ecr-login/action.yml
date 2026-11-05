@@ -146,8 +146,24 @@ runs:
           echo "::warning::Repository '${REPO_NAME}' does not exist and is not under dev/, stg/, or prd/. Skipping creation — these repositories must be managed via Terraform."
         fi
 
-        scan_sbom() {
-          aws inspector-scan scan-sbom --region "$REGION" --sbom "file://$1" --output-format CYCLONE_DX_1_5 --query sbom >"$2"
+        # Scans the SBOM's components [start, start + count) with its OS components, halving the batch
+        # when Inspector rejects the response for having too many findings.
+        scan_batch() {
+          local work="$1" start="$2" count="$3" half
+          jq --argjson start "$start" --argjson count "$count" '.components |= (
+              [.[] | select(.type == "operating-system")]
+              + ([.[] | select(.type != "operating-system")] | .[$start:$start + $count]))' \
+            "$work/sbom.json" >"$work/part.json" || return 1
+          if aws inspector-scan scan-sbom --region "$REGION" --sbom "file://$work/part.json" \
+            --output-format CYCLONE_DX_1_5 --query sbom >"$work/scan-$start.json" 2>"$work/scan.err"; then
+            return 0
+          fi
+          if ! grep -q 'Response too large' "$work/scan.err" || [ "$count" -le 1 ]; then
+            cat "$work/scan.err" >&2
+            return 1
+          fi
+          half=$((count / 2))
+          scan_batch "$work" "$start" "$half" && scan_batch "$work" $((start + half)) $((count - half))
         }
 
         # Warn about the critical CVEs ECR enhanced scanning would report for this image. Uses
@@ -162,23 +178,13 @@ runs:
             return 0
           fi
           docker save "$IMAGE" -o "$work/image.tar" || return 1
-          "$ECR_PUSH_SBOMGEN" container --image "$work/image.tar" -o "$work/sbom.json" >/dev/null 2>&1 || return 1
+          "$ECR_PUSH_SBOMGEN" container --image "$work/image.tar" -o "$work/sbom.json" >"$work/sbomgen.log" 2>&1 \
+            || { tail -5 "$work/sbomgen.log" >&2; return 1; }
           rm -f "$work/image.tar"
-          scan_sbom "$work/sbom.json" "$work/scan.json" 2>"$work/scan.err" || {
-            # Inspector rejects responses with too many findings, so scan the packages in batches,
-            # each with the image's OS components, and merge the results.
-            grep -q 'Response too large' "$work/scan.err" || { cat "$work/scan.err" >&2; return 1; }
-            local total i
-            total=$(jq '[.components[]? | select(.type != "operating-system")] | length' "$work/sbom.json")
-            for ((i = 0; i < total; i += 100)); do
-              jq --argjson i "$i" '.components |= ([.[] | select(.type == "operating-system")]
-                + ([.[] | select(.type != "operating-system")] | .[$i:$i + 100]))' \
-                "$work/sbom.json" >"$work/part.json" || return 1
-              scan_sbom "$work/part.json" "$work/scan-$i.json" || return 1
-            done
-            jq -s '{components: (map(.components // []) | add),
-              vulnerabilities: (map(.vulnerabilities // []) | add)}' "$work"/scan-*.json >"$work/scan.json" || return 1
-          }
+          scan_batch "$work" 0 "$(jq '[.components[]? | select(.type != "operating-system")] | length' "$work/sbom.json")" \
+            || return 1
+          jq -s '{components: (map(.components // []) | add), vulnerabilities: (map(.vulnerabilities // []) | add)}' \
+            "$work"/scan-*.json >"$work/scan.json" || return 1
           jq -r '
             (.components // []) as $components
             | .vulnerabilities // []
