@@ -21,19 +21,17 @@ runs:
         aws-region: "us-east-1"
         role-session-name: gha-ecr-scan-${{ github.run_id }}-${{ github.run_attempt }}
 
-    - name: Install inspector-sbomgen and ecr-scan
+    - name: Install ecr-scan
       shell: bash
       env:
         RUNNER_TEMP: ${{ runner.temp }}
         ACTION_PATH: ${{ github.action_path }}
       run: |
-        case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64 | arm64) arch=arm64 ;; *) echo "::error::Unsupported architecture $(uname -m)"; exit 1 ;; esac
         dir="${RUNNER_TEMP}/ecr-scan-bin"
         mkdir -p "$dir"
-        curl -fsSL --retry 3 "https://amazon-inspector-sbomgen.s3.amazonaws.com/latest/linux/${arch}/inspector-sbomgen.zip" -o "${RUNNER_TEMP}/sbomgen.zip"
-        unzip -q -o -j "${RUNNER_TEMP}/sbomgen.zip" '*/inspector-sbomgen' -d "$dir"
         cp "${ACTION_PATH}/ecr-scan" "$dir/ecr-scan"
-        chmod +x "$dir/inspector-sbomgen" "$dir/ecr-scan"
+        chmod +x "$dir/ecr-scan"
+        "$dir/ecr-scan" --install "$dir"
         echo "$dir" >> "$GITHUB_PATH"
 
     - name: Set up ecr-scan for the Copilot agent's session
@@ -42,7 +40,7 @@ runs:
       env:
         RUNNER_TEMP: ${{ runner.temp }}
       run: |
-        sudo install -m 755 "${RUNNER_TEMP}/ecr-scan-bin/inspector-sbomgen" "${RUNNER_TEMP}/ecr-scan-bin/ecr-scan" /usr/local/bin/
+        sudo install -m 755 "${RUNNER_TEMP}/ecr-scan-bin/ecr-scan" "${RUNNER_TEMP}/ecr-scan-bin/inspector-sbomgen" /usr/local/bin/
         mkdir -p ~/.aws
         umask 077
         cat >~/.aws/credentials <<CREDS

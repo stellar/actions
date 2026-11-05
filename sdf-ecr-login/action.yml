@@ -63,24 +63,6 @@ runs:
       with:
         registry-type: public
 
-    - name: Install inspector-sbomgen
-      if: inputs.scan-images == 'true'
-      shell: bash
-      env:
-        RUNNER_TEMP: ${{ runner.temp }}
-      run: |
-        case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64 | arm64) arch=arm64 ;; *) arch= ;; esac
-        dir="${RUNNER_TEMP}/inspector-sbomgen"
-        mkdir -p "$dir"
-        if [ -n "$arch" ] \
-          && curl -fsSL --retry 3 "https://amazon-inspector-sbomgen.s3.amazonaws.com/latest/linux/${arch}/inspector-sbomgen.zip" -o "$dir/sbomgen.zip" \
-          && unzip -q -o -j "$dir/sbomgen.zip" '*/inspector-sbomgen' -d "$dir"; then
-          chmod +x "$dir/inspector-sbomgen"
-          echo "ECR_SCAN_SBOMGEN=$dir/inspector-sbomgen" >> "$GITHUB_ENV"
-        else
-          echo "::warning::Could not install inspector-sbomgen; images won't be scanned."
-        fi
-
     # Install ecr-push wrapper script onto PATH
     - name: Install ecr-push helper
       shell: bash
@@ -89,6 +71,7 @@ runs:
         AWS_REGION_INPUT: "us-east-1"
         GITHUB_REPO: ${{ github.repository }}
         ACTION_PATH: ${{ github.action_path }}
+        SCAN_IMAGES: ${{ inputs.scan-images }}
       run: |
         # Repos with immutable OIDC subjects send "owner@id/repo@id" instead of "owner/repo", so tag with what the token carries.
         oidc_sub() {
@@ -148,7 +131,7 @@ runs:
         fi
 
         # Warn about the critical CVEs ECR enhanced scanning would report. The scan never fails the push.
-        if [ -n "${ECR_SCAN_SBOMGEN:-}" ]; then
+        if [ "${ECR_PUSH_SCAN}" = true ]; then
           ID=$(docker image inspect -f '{{.Id}}' "$IMAGE" 2>/dev/null || true)
           # Each image is scanned once per job, even when it's pushed to several repositories.
           if [ -n "$ID" ] && [ -e "${ECR_PUSH_SCANNED}/${ID#sha256:}" ]; then
@@ -198,4 +181,5 @@ runs:
         echo "ECR_PUSH_REGION=${AWS_REGION_INPUT}" >> "$GITHUB_ENV"
         echo "ECR_PUSH_REPO_TAG=${REPO_TAG:-$GITHUB_REPO}" >> "$GITHUB_ENV"
         echo "ECR_PUSH_SCANNED=${RUNNER_TEMP}/ecr-push-scanned" >> "$GITHUB_ENV"
+        echo "ECR_PUSH_SCAN=${SCAN_IMAGES}" >> "$GITHUB_ENV"
 

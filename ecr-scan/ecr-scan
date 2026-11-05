@@ -1,26 +1,50 @@
 #!/usr/bin/env bash
 # Usage: ecr-scan <image>
+#        ecr-scan --install <dir>
 #
 # Scans a local image with Amazon Inspector, the scanner behind ECR enhanced scanning, and prints
 # the critical CVEs ECR would report for it: Inspector's own severity, without lockfile dev
 # dependencies. Prints one "<id>: <packages>" line per CVE, then "critical findings: <n>".
 # Exits 0 with no critical findings, 1 with some, and 2 if the scan couldn't run.
+#
+# Uses inspector-sbomgen from PATH, or downloads it for this run. --install <dir> only downloads it
+# into <dir>, for when the network will be restricted later (Copilot's firewall blocks it).
 set -uo pipefail
 
+# Downloads inspector-sbomgen into the given directory.
+download_sbomgen() {
+  local dir="$1" arch
+  case "$(uname -m)" in
+    x86_64) arch=amd64 ;;
+    aarch64 | arm64) arch=arm64 ;;
+    *) echo "Unsupported architecture $(uname -m)" >&2; return 1 ;;
+  esac
+  curl -fsSL --retry 3 "https://amazon-inspector-sbomgen.s3.amazonaws.com/latest/linux/${arch}/inspector-sbomgen.zip" -o "$dir/sbomgen.zip" \
+    && unzip -q -o -j "$dir/sbomgen.zip" '*/inspector-sbomgen' -d "$dir" \
+    && chmod +x "$dir/inspector-sbomgen" \
+    && rm -f "$dir/sbomgen.zip" \
+    || { echo "Couldn't download inspector-sbomgen" >&2; return 1; }
+}
+
+if [ "${1:-}" = --install ] && [ $# -eq 2 ]; then
+  download_sbomgen "$2" || exit 2
+  exit 0
+fi
 if [ $# -ne 1 ]; then
-  echo "Usage: ecr-scan <image>" >&2
+  echo "Usage: ecr-scan <image> | ecr-scan --install <dir>" >&2
   exit 2
 fi
 IMAGE="$1"
 REGION="${ECR_SCAN_REGION:-us-east-1}"
-SBOMGEN="${ECR_SCAN_SBOMGEN:-$(command -v inspector-sbomgen || true)}"
-if [ -z "$SBOMGEN" ]; then
-  echo "inspector-sbomgen isn't installed" >&2
-  exit 2
-fi
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
+
+SBOMGEN="$(command -v inspector-sbomgen || true)"
+if [ -z "$SBOMGEN" ]; then
+  download_sbomgen "$work" || exit 2
+  SBOMGEN="$work/inspector-sbomgen"
+fi
 
 # Scans the SBOM's components [start, start + count) with its OS components, halving the batch
 # when Inspector rejects the response for having too many findings.
