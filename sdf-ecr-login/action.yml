@@ -19,6 +19,13 @@ inputs:
       critical CVEs ECR enhanced scanning would report (true/false). The scan never fails the push.
     required: false
     default: 'true'
+  scan-only:
+    description: >-
+      For Copilot coding agent setup steps (true/false). Logs in to a role that can only scan images,
+      not push them, installs ecr-scan instead of ecr-push, and saves the credentials to ~/.aws so the
+      agent can run ecr-scan in its session. Skips ECR login.
+    required: false
+    default: 'false'
 
 outputs:
   ecr-registry:
@@ -46,25 +53,26 @@ runs:
     - name: Configure AWS credentials via OIDC (sub-scoped role)
       uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
       with:
-        role-to-assume: "arn:aws:iam::746476062914:role/github-actions-ecr"
+        role-to-assume: ${{ inputs.scan-only == 'true' && 'arn:aws:iam::746476062914:role/github-actions-inspector-scan' || 'arn:aws:iam::746476062914:role/github-actions-ecr' }}
         aws-region: "us-east-1"
         role-session-name: gha-ecr-${{ github.run_id }}-${{ github.run_attempt }}
 
     # Step 3: Login to private ECR
     - name: Login to Amazon ECR
       id: login-ecr
+      if: inputs.scan-only != 'true'
       uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
 
     # Step 4: Conditionally login to public ECR
     - name: Login to Amazon ECR Public
-      if: inputs.login-public-ecr == 'true'
+      if: inputs.login-public-ecr == 'true' && inputs.scan-only != 'true'
       id: login-ecr-public
       uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
       with:
         registry-type: public
 
     - name: Install inspector-sbomgen
-      if: inputs.scan-images == 'true'
+      if: inputs.scan-images == 'true' || inputs.scan-only == 'true'
       shell: bash
       env:
         RUNNER_TEMP: ${{ runner.temp }}
@@ -76,18 +84,20 @@ runs:
           && curl -fsSL --retry 3 "https://amazon-inspector-sbomgen.s3.amazonaws.com/latest/linux/${arch}/inspector-sbomgen.zip" -o "$dir/sbomgen.zip" \
           && unzip -q -o -j "$dir/sbomgen.zip" '*/inspector-sbomgen' -d "$dir"; then
           chmod +x "$dir/inspector-sbomgen"
-          echo "ECR_PUSH_SBOMGEN=$dir/inspector-sbomgen" >> "$GITHUB_ENV"
+          echo "ECR_SCAN_SBOMGEN=$dir/inspector-sbomgen" >> "$GITHUB_ENV"
         else
-          echo "::warning::Could not install inspector-sbomgen; ecr-push will push without scanning."
+          echo "::warning::Could not install inspector-sbomgen; images won't be scanned."
         fi
 
     # Install ecr-push wrapper script onto PATH
     - name: Install ecr-push helper
+      if: inputs.scan-only != 'true'
       shell: bash
       env:
         RUNNER_TEMP: ${{ runner.temp }}
         AWS_REGION_INPUT: "us-east-1"
         GITHUB_REPO: ${{ github.repository }}
+        ACTION_PATH: ${{ github.action_path }}
       run: |
         # Repos with immutable OIDC subjects send "owner@id/repo@id" instead of "owner/repo", so tag with what the token carries.
         oidc_sub() {
@@ -146,106 +156,78 @@ runs:
           echo "::warning::Repository '${REPO_NAME}' does not exist and is not under dev/, stg/, or prd/. Skipping creation — these repositories must be managed via Terraform."
         fi
 
-        # Scans the SBOM's components [start, start + count) with its OS components, halving the batch
-        # when Inspector rejects the response for having too many findings.
-        scan_batch() {
-          local work="$1" start="$2" count="$3" half
-          jq --argjson start "$start" --argjson count "$count" '.components |= (
-              [.[] | select(.type == "operating-system")]
-              + ([.[] | select(.type != "operating-system")] | .[$start:$start + $count]))' \
-            "$work/sbom.json" >"$work/part.json" || return 1
-          if aws inspector-scan scan-sbom --region "$REGION" --sbom "file://$work/part.json" \
-            --output-format CYCLONE_DX_1_5 --query sbom >"$work/scan-$start.json" 2>"$work/scan.err"; then
-            return 0
-          fi
-          if ! grep -q 'Response too large' "$work/scan.err"; then
-            cat "$work/scan.err" >&2
-            return 1
-          fi
-          if [ "$count" -le 1 ]; then
-            # One package with too many CVEs to return, such as Ubuntu's linux kernel package.
-            rm -f "$work/scan-$start.json"
-            jq -r '.components[] | select(.type != "operating-system") | "\(.name) \(.version)"' "$work/part.json" >>"$work/unscanned.txt"
-            return 0
-          fi
-          half=$((count / 2))
-          scan_batch "$work" "$start" "$half" && scan_batch "$work" $((start + half)) $((count - half))
-        }
-
-        # Warn about the critical CVEs ECR enhanced scanning would report for this image. Uses
-        # Amazon Inspector's own rating and skips lockfile dev dependencies, as ECR does.
-        # Runs as `scan "$work" || ...`, where set -e doesn't apply, so each step checks its own exit.
-        scan() {
-          local work="$1" id count
-          id=$(docker image inspect -f '{{.Id}}' "$IMAGE") || return 1
+        # Warn about the critical CVEs ECR enhanced scanning would report. The scan never fails the push.
+        if [ -n "${ECR_SCAN_SBOMGEN:-}" ]; then
+          ID=$(docker image inspect -f '{{.Id}}' "$IMAGE" 2>/dev/null || true)
           # Each image is scanned once per job, even when it's pushed to several repositories.
-          if [ -e "${ECR_PUSH_SCANNED}/${id#sha256:}" ]; then
-            echo "Already scanned ${id}"
-            return 0
+          if [ -n "$ID" ] && [ -e "${ECR_PUSH_SCANNED}/${ID#sha256:}" ]; then
+            echo "Already scanned ${ID}"
+          else
+            SCAN_OUT=$(mktemp)
+            SCAN_ERR=$(mktemp)
+            STATUS=0
+            "$(dirname "$0")/ecr-scan" "$IMAGE" >"$SCAN_OUT" 2>"$SCAN_ERR" || STATUS=$?
+            if [ -s "$SCAN_ERR" ] && grep -q '^Not scanned' "$SCAN_ERR"; then
+              echo "::warning title=Unscanned packages in ${REPO_NAME}::$(grep '^Not scanned' "$SCAN_ERR") (${IMAGE})"
+            fi
+            case "$STATUS" in
+              0)
+                echo "Amazon Inspector: no critical findings in ${IMAGE}"
+                ;;
+              1)
+                sed '$d' "$SCAN_OUT" >"${SCAN_OUT}.cves"
+                COUNT=$(wc -l <"${SCAN_OUT}.cves" | tr -d ' ')
+                echo "::warning title=Critical CVEs in ${REPO_NAME}::${COUNT} critical CVE(s) in ${IMAGE}: $(paste -sd ';' "${SCAN_OUT}.cves" | sed 's/;/; /g')"
+                {
+                  echo "### ${COUNT} critical CVE(s) in \`${IMAGE}\`"
+                  echo
+                  sed 's/^/- /' "${SCAN_OUT}.cves"
+                  echo
+                } >>"$GITHUB_STEP_SUMMARY"
+                ;;
+              *)
+                tail -5 "$SCAN_ERR" >&2
+                echo "::warning::Amazon Inspector scan of ${IMAGE} failed; pushing without it."
+                ;;
+            esac
+            if [ "$STATUS" -le 1 ] && [ -n "$ID" ]; then
+              mkdir -p "$ECR_PUSH_SCANNED" && touch "${ECR_PUSH_SCANNED}/${ID#sha256:}"
+            fi
+            rm -f "$SCAN_OUT" "${SCAN_OUT}.cves" "$SCAN_ERR"
           fi
-          if ! { docker save "$IMAGE" -o "$work/image.tar" \
-            && "$ECR_PUSH_SBOMGEN" container --image "$work/image.tar" -o "$work/sbom.json" >"$work/sbomgen.log" 2>&1; }; then
-            # docker save can't export some pulled multi-platform images, so scan the image's files instead.
-            tail -3 "$work/sbomgen.log" 2>/dev/null
-            echo "Scanning the files of ${IMAGE} instead of the saved image"
-            rm -f "$work/image.tar"
-            local container
-            container=$(docker create "$IMAGE") || return 1
-            mkdir "$work/rootfs"
-            docker export "$container" | tar -x -C "$work/rootfs" 2>/dev/null
-            docker rm "$container" >/dev/null
-            "$ECR_PUSH_SBOMGEN" directory --path "$work/rootfs" -o "$work/sbom.json" >"$work/sbomgen.log" 2>&1 \
-              || { tail -5 "$work/sbomgen.log" >&2; return 1; }
-            rm -rf "$work/rootfs"
-          fi
-          rm -f "$work/image.tar"
-          scan_batch "$work" 0 "$(jq '[.components[]? | select(.type != "operating-system")] | length' "$work/sbom.json")" \
-            || return 1
-          # Each response numbers its own bom-refs, so match CVEs to packages per batch, then combine.
-          for part in "$work"/scan-*.json; do
-            [ -e "$part" ] || continue
-            jq -c '
-              (.components // []) as $components
-              | .vulnerabilities // []
-              | .[]
-              | select(any(.ratings[]?; .source.name == "AMAZON_INSPECTOR" and .severity == "critical"))
-              | . as $v
-              | {id: $v.id, packages: [$v.affects[]?.ref as $ref | $components[]
-                  | select(."bom-ref" == $ref and ((.purl // "") | test("dev_dependency=true") | not))
-                  | "\(.name) \(.version // "")" | rtrimstr(" ")]}
-              | select(.packages | length > 0)
-            ' "$part" || return 1
-          done >"$work/critical.jsonl"
-          jq -rs 'group_by(.id) | map("\(.[0].id): \(map(.packages[]) | unique | join(", "))")[]' \
-            "$work/critical.jsonl" >"$work/critical.txt" || return 1
-          mkdir -p "$ECR_PUSH_SCANNED" && touch "${ECR_PUSH_SCANNED}/${id#sha256:}"
-          if [ -s "$work/unscanned.txt" ]; then
-            echo "::warning title=Unscanned packages in ${REPO_NAME}::Amazon Inspector has too many CVEs to report for these packages in ${IMAGE}, so they weren't checked: $(paste -sd ';' "$work/unscanned.txt" | sed 's/;/; /g')"
-          fi
-          count=$(wc -l <"$work/critical.txt" | tr -d ' ')
-          if [ "$count" -eq 0 ]; then
-            echo "Amazon Inspector: no critical findings in ${IMAGE}"
-            return 0
-          fi
-          echo "::warning title=Critical CVEs in ${REPO_NAME}::${count} critical CVE(s) in ${IMAGE}: $(paste -sd ';' "$work/critical.txt" | sed 's/;/; /g')"
-          {
-            echo "### ${count} critical CVE(s) in \`${IMAGE}\`"
-            echo
-            sed 's/^/- /' "$work/critical.txt"
-            echo
-          } >>"$GITHUB_STEP_SUMMARY"
-        }
-        if [ -n "${ECR_PUSH_SBOMGEN:-}" ]; then
-          SCAN_DIR=$(mktemp -d)
-          scan "$SCAN_DIR" || echo "::warning::Amazon Inspector scan of ${IMAGE} failed; pushing without it."
-          rm -rf "$SCAN_DIR"
         fi
 
         echo "Attempting to push image to repository '${REPO_NAME}'"
         docker push "$IMAGE"
         SCRIPT
         chmod +x "$SCRIPT_DIR/ecr-push"
+        cp "${ACTION_PATH}/ecr-scan" "$SCRIPT_DIR/ecr-scan"
         echo "$SCRIPT_DIR" >> "$GITHUB_PATH"
         echo "ECR_PUSH_REGION=${AWS_REGION_INPUT}" >> "$GITHUB_ENV"
         echo "ECR_PUSH_REPO_TAG=${REPO_TAG:-$GITHUB_REPO}" >> "$GITHUB_ENV"
         echo "ECR_PUSH_SCANNED=${RUNNER_TEMP}/ecr-push-scanned" >> "$GITHUB_ENV"
+
+    # Copilot's session doesn't inherit this job's environment, so put the tools on the system PATH
+    # and the credentials in the default AWS config files.
+    - name: Install ecr-scan for Copilot
+      if: inputs.scan-only == 'true'
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        if [ -z "${ECR_SCAN_SBOMGEN:-}" ]; then
+          echo "::error::inspector-sbomgen didn't install, so ecr-scan can't run."
+          exit 1
+        fi
+        sudo install -m 755 "$ECR_SCAN_SBOMGEN" /usr/local/bin/inspector-sbomgen
+        sudo install -m 755 "${ACTION_PATH}/ecr-scan" /usr/local/bin/ecr-scan
+        mkdir -p ~/.aws
+        umask 077
+        cat >~/.aws/credentials <<CREDS
+        [default]
+        aws_access_key_id = ${AWS_ACCESS_KEY_ID}
+        aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
+        aws_session_token = ${AWS_SESSION_TOKEN}
+        CREDS
+        printf '[default]\nregion = us-east-1\n' >~/.aws/config
+        echo "ecr-scan is installed; credentials for github-actions-inspector-scan are in ~/.aws."

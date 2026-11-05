@@ -65,6 +65,7 @@ It will:
 | `login-public-ecr` | no | `false` | Set to `true` to also log into ECR Public |
 | `auth-mode` | no | `oidc` | Deprecated; `oidc` is the only mode. `chain` is ignored with a warning. See [How access is scoped](#how-access-is-scoped) |
 | `scan-images` | no | `true` | Set to `false` to push without scanning. See [Image scanning](#image-scanning) |
+| `scan-only` | no | `false` | For Copilot setup steps: install `ecr-scan` with scan-only credentials instead of logging in to ECR. See [Copilot coding agent](#copilot-coding-agent) |
 
 ## Image scanning
 
@@ -75,6 +76,40 @@ Before each push, `ecr-push` scans the image with Amazon Inspector, the scanner 
 - Scanning adds about 5 seconds for a small alpine image and 25 to 55 seconds for a 500 to 600 MB image.
 - A package with too many CVEs for Inspector to return in one response, such as Ubuntu's `linux` kernel package, is skipped and named in a warning.
 - Images pushed with `docker buildx build --push` don't go through `ecr-push`, so they aren't scanned.
+
+The scan is also available on its own as `ecr-scan <image>`, which `ecr-push` uses. It prints one `<CVE>: <packages>` line per critical CVE, then `critical findings: <n>`, and exits 0 with none, 1 with some, and 2 if the scan couldn't run.
+
+## Copilot coding agent
+
+With `scan-only: true`, the action sets up a Copilot coding agent session to scan the images it builds, so the agent can fix critical CVEs and rescan until they're gone:
+
+- It logs in to `github-actions-inspector-scan`, which can only call `inspector-scan:ScanSbom` and can't push images.
+- It installs `ecr-scan` and `inspector-sbomgen` in `/usr/local/bin` and saves the credentials to `~/.aws`, since the agent's session doesn't inherit the job's environment. They last an hour.
+- It doesn't log in to ECR or install `ecr-push`.
+
+```yaml
+# .github/workflows/copilot-setup-steps.yml
+name: Copilot setup steps
+on:
+  workflow_dispatch:
+  push:
+    paths: [.github/workflows/copilot-setup-steps.yml]
+  pull_request:
+    paths: [.github/workflows/copilot-setup-steps.yml]
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: stellar/actions/sdf-ecr-login@main
+        with:
+          scan-only: 'true'
+```
+
+The agent's firewall must also allow `inspector-scan.us-east-1.amazonaws.com`: add it under the repository's (or organization's) Settings → Copilot → Coding agent → Internet access.
 
 ## How access is scoped
 
