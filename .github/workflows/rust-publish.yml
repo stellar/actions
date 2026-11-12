@@ -31,7 +31,8 @@ jobs:
         version: 0.2.35
     - id: token
       run: echo "use_token=${{ secrets.CARGO_REGISTRY_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
-    - if: steps.token.outputs.use_token != 'true'
+    - name: Use crates.io trusted publishing (when no token)
+      if: steps.token.outputs.use_token != 'true'
       id: auth
       uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
     - run: cargo workspaces publish --all --from-git --yes
