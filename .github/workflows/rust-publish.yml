@@ -4,10 +4,21 @@ on:
   workflow_call:
     secrets:
       CARGO_REGISTRY_TOKEN:
-        required: true
+        description: 'crates.io API token. Not needed when trusted-publishing is true.'
+        required: false
     inputs:
       additional-deb-packages:
         description: 'Space separated list of .deb packages that will be installed on ubuntu.'
+        required: false
+        default: ''
+        type: string
+      trusted-publishing:
+        description: 'Authenticate to crates.io with trusted publishing (OIDC) instead of CARGO_REGISTRY_TOKEN. The calling job must grant `id-token: write`.'
+        required: false
+        default: false
+        type: boolean
+      environment:
+        description: 'GitHub environment the publish job runs in, e.g. the environment configured on the crates.io trusted publisher.'
         required: false
         default: ''
         type: string
@@ -16,6 +27,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     steps:
     - name: Install additional dependencies (Linux)
       if: inputs.additional-deb-packages != ''
@@ -27,6 +39,9 @@ jobs:
       with:
         name: cargo-workspaces
         version: 0.2.35
+    - if: inputs.trusted-publishing
+      id: auth
+      uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
     - run: cargo workspaces publish --all --from-git --yes
       env:
-        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token || secrets.CARGO_REGISTRY_TOKEN }}
