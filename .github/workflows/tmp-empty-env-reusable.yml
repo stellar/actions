@@ -1,0 +1,14 @@
+name: tmp empty env reusable
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: false
+        default: ''
+        type: string
+jobs:
+  job:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+    - run: echo "environment input='${{ inputs.environment }}'"
