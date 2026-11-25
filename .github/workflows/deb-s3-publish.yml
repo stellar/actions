@@ -5,10 +5,13 @@ name: deb-s3 publish
 # s3://stellar-build-staging/github/<repo>/<run id>/ with the caller repo's staging role, then
 # asks the deb-s3-publisher runner set (kube001-prd-eks) to sign and publish each one.
 #
+# With `copy` instead, it promotes packages that are already published, for example from
+# testing to stable, without rebuilding or staging anything.
+#
 # The runner's sidecar only accepts OIDC tokens from jobs in this file on main, so call it as
 # stellar/actions/.github/workflows/deb-s3-publish.yml@main, from a job with
-# `permissions: id-token: write`. Which packages a repo may publish, and to which repo,
-# distro and component, is set in the sidecar's policy in stellar/kube
+# `permissions: id-token: write`. Which packages a repo may publish, to which repo, distros and
+# components, and which copies it may make, is set in the sidecar's policy in stellar/kube
 # (kube001-prd-eks/namespaces/arc-runners/deb-s3-publisher/policy.json), not by the caller.
 # Design: https://github.com/stellar/ops/issues/5004
 
@@ -16,24 +19,42 @@ on:
   workflow_call:
     inputs:
       artifact-name:
-        description: Artifact holding the .deb files to publish
-        required: true
+        description: Artifact holding the .deb files to publish. Set this or copy.
         type: string
+        default: ''
       staging-role:
-        description: The caller repo's IAM role for writing to its staging prefix
-        required: true
+        description: The caller repo's IAM role for writing to its staging prefix, needed with artifact-name
         type: string
+        default: ''
+      targets:
+        description: >-
+          With artifact-name: publish to only some of the repo's targets in the policy,
+          space-separated <distro>/<component> such as "jammy/unstable noble/unstable". Empty
+          publishes to all of them. It can narrow the policy's targets, never add to them.
+        type: string
+        default: ''
+      copy:
+        description: >-
+          Published packages to copy along the repo's copies in the policy, space-separated
+          <name>_<version>_<arch> such as stellar-horizon_25.1.0-512_amd64. Set this or artifact-name.
+        type: string
+        default: ''
 
 permissions: {}
 
 jobs:
   stage:
+    if: inputs.copy == ''
     runs-on: ubuntu-latest
     permissions:
       id-token: write
     outputs:
       keys: ${{ steps.stage.outputs.keys }}
     steps:
+      - name: Check the inputs
+        if: inputs.artifact-name == ''
+        run: echo "::error::Set artifact-name to publish, or copy to promote" && exit 1
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ inputs.artifact-name }}
@@ -63,6 +84,7 @@ jobs:
       - name: Sign and publish
         env:
           KEYS: ${{ needs.stage.outputs.keys }}
+          TARGETS: ${{ inputs.targets }}
         run: |
           set -euo pipefail
           for key in $(jq -r '.[]' <<<"${KEYS}"); do
@@ -72,11 +94,41 @@ jobs:
             echo "::add-mask::${token}"
             code=$(curl -sS -o resp.json -w '%{http_code}' -X POST http://127.0.0.1:8080/publish \
               -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' \
-              --data "$(jq -cn --arg key "${key}" '{key: $key}')")
+              --data "$(jq -cn --arg key "${key}" --arg t "${TARGETS}" '{key: $key} + if $t == "" then {} else {targets: ($t | split(" ") | map(select(. != "")))} end')")
             jq -r '.logs // empty' resp.json
             jq -c 'del(.logs)' resp.json
             if [ "${code}" != 200 ]; then
               echo "::error::Publishing ${key} failed (HTTP ${code})"
+              exit 1
+            fi
+          done
+
+  copy:
+    if: inputs.copy != ''
+    runs-on: deb-s3-publisher
+    permissions:
+      id-token: write
+    steps:
+      - name: Copy
+        env:
+          ARTIFACT: ${{ inputs.artifact-name }}
+          COPY: ${{ inputs.copy }}
+        run: |
+          set -euo pipefail
+          [ -z "${ARTIFACT}" ] || { echo "::error::Set artifact-name or copy, not both"; exit 1; }
+          read -ra pkgs <<<"${COPY}"
+          for pkg in "${pkgs[@]}"; do
+            IFS=_ read -r name version arch <<<"${pkg}"
+            token=$(curl -sSf -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+              "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=deb-s3-publisher" | jq -r .value)
+            echo "::add-mask::${token}"
+            code=$(curl -sS -o resp.json -w '%{http_code}' -X POST http://127.0.0.1:8080/copy \
+              -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' \
+              --data "$(jq -cn --arg p "${name}" --arg v "${version}" --arg a "${arch}" '{package: $p, version: $v, arch: $a}')")
+            jq -r '.logs // empty' resp.json
+            jq -c 'del(.logs)' resp.json
+            if [ "${code}" != 200 ]; then
+              echo "::error::Copying ${pkg} failed (HTTP ${code})"
               exit 1
             fi
           done
