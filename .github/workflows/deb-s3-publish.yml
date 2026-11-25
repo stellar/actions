@@ -26,6 +26,13 @@ on:
         description: The caller repo's IAM role for writing to its staging prefix, needed with artifact-name
         type: string
         default: ''
+      targets:
+        description: >-
+          With artifact-name: publish to only some of the repo's targets in the policy,
+          space-separated <distro>/<component> such as "jammy/unstable noble/unstable". Empty
+          publishes to all of them. It can narrow the policy's targets, never add to them.
+        type: string
+        default: ''
       copy:
         description: >-
           Published packages to copy along the repo's copies in the policy, space-separated
@@ -77,6 +84,7 @@ jobs:
       - name: Sign and publish
         env:
           KEYS: ${{ needs.stage.outputs.keys }}
+          TARGETS: ${{ inputs.targets }}
         run: |
           set -euo pipefail
           for key in $(jq -r '.[]' <<<"${KEYS}"); do
@@ -86,7 +94,7 @@ jobs:
             echo "::add-mask::${token}"
             code=$(curl -sS -o resp.json -w '%{http_code}' -X POST http://127.0.0.1:8080/publish \
               -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' \
-              --data "$(jq -cn --arg key "${key}" '{key: $key}')")
+              --data "$(jq -cn --arg key "${key}" --arg t "${TARGETS}" '{key: $key} + if $t == "" then {} else {targets: ($t | split(" ") | map(select(. != "")))} end')")
             jq -r '.logs // empty' resp.json
             jq -c 'del(.logs)' resp.json
             if [ "${code}" != 200 ]; then
